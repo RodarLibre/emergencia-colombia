@@ -246,7 +246,18 @@ export async function resolveQuestion(
   } catch {
     // Neither the question text nor the provider error is logged: it could
     // contain names, phone numbers, or health data (plan 14.5).
-    return fallbackQuery(trimmed);
+    //
+    // Same deterministic resolution as the "AI disabled" branch above: a
+    // provider failure must degrade to that quality, not below it. Without
+    // this, a transient timeout silently drops the municipality filter even
+    // though it's sitting right there in the text.
+    const municipality = findMunicipalityInText(trimmed);
+    return {
+      ...fallbackQuery(trimmed),
+      categories: deterministicCategories,
+      admin2Code: municipality?.code ?? null,
+      admin2Name: municipality?.name ?? null,
+    };
   }
 }
 
