@@ -44,3 +44,18 @@ describe("resolveQuestion — intent cache short-circuits the provider", () => {
     expect(generateObjectMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("resolveQuestion — a provider failure degrades to the same deterministic quality as AI off", () => {
+  it("still resolves the municipality and categories written in the text when generateObject throws", async () => {
+    generateObjectMock.mockRejectedValue(new Error("timeout"));
+
+    const { resolveQuestion } = await import("./intent");
+    const question = `agua en Dagua ${Math.random()}`;
+
+    const result = await resolveQuestion(question);
+
+    expect(result.interpretedBy).toBe("fallback");
+    expect(result.admin2Name).toBe("Dagua");
+    expect(result.categories).toContain("water");
+  });
+});
