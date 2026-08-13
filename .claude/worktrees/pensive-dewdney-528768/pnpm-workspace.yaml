@@ -1,0 +1,8 @@
+# No es un workspace: es una sola app. Este archivo solo lleva config de pnpm.
+# esbuild lo necesitan tsx y drizzle-kit para compilar TS fuera de Next.
+allowBuilds:
+  esbuild: true
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - "@ai-sdk/gateway@4.0.51"
+  - ai@7.0.64

@@ -1,0 +1,254 @@
+import { relations } from "drizzle-orm";
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  serial,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+
+/**
+ * Core model from the plan, trimmed down.
+ *
+ * What carries the weight is kept: immutable observations + full provenance +
+ * stable per-source identity. canonical_records, duplicate_candidates and
+ * conflicts are omitted for now: the "current" view is computed as each
+ * source_record's latest observation, and disagreements are shown by putting
+ * sources side by side instead of merging them.
+ */
+
+// --- Sources -------------------------------------------------------------
+
+export const sources = pgTable("sources", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  baseUrl: text("base_url").notNull(),
+  /** official_api | partner_feed | public_html | manual */
+  mode: text("mode").notNull(),
+  /** Starts as false on purpose: without a reviewed policy, the source doesn't run. */
+  enabled: boolean("enabled").notNull().default(false),
+  /** official | ngo | community */
+  trustLabel: text("trust_label").notNull().default("community"),
+  pollIntervalSeconds: integer("poll_interval_seconds").notNull().default(900),
+  /**
+   * Department the source declares it covers (DANE code). Used to avoid
+   * hiding records with no municipality: if someone filters by a
+   * municipality in this department, this source's records with no
+   * municipality appear marked as "the source didn't specify a
+   * municipality", instead of staying invisible or getting a made-up location.
+   */
+  coverageAdmin1Code: text("coverage_admin1_code"),
+  policyReviewedAt: timestamp("policy_reviewed_at", { withTimezone: true }),
+  contactNote: text("contact_note"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// --- Per-source record identity -----------------------------------
+
+export const sourceRecords = pgTable(
+  "source_records",
+  {
+    id: serial("id").primaryKey(),
+    sourceId: integer("source_id")
+      .notNull()
+      .references(() => sources.id, { onDelete: "cascade" }),
+    externalId: text("external_id").notNull(),
+    canonicalUrl: text("canonical_url"),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastContentHash: text("last_content_hash"),
+    /** Only when the source explicitly withdraws it. Never due to absence. */
+    withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
+    /** Hidden due to moderation or a removal request. */
+    hiddenAt: timestamp("hidden_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("source_records_source_external_idx").on(t.sourceId, t.externalId),
+    index("source_records_last_seen_idx").on(t.lastSeenAt),
+  ],
+);
+
+// --- Observations (immutable) -----------------------------------------
+
+export const observations = pgTable(
+  "observations",
+  {
+    id: serial("id").primaryKey(),
+    sourceRecordId: integer("source_record_id")
+      .notNull()
+      .references(() => sourceRecords.id, { onDelete: "cascade" }),
+    schemaVersion: text("schema_version").notNull().default("1.0"),
+
+    recordType: text("record_type").notNull(),
+    status: text("status").notNull().default("unknown"),
+    title: text("title").notNull(),
+    description: text("description"),
+    categoryCodes: text("category_codes").array().notNull().default([]),
+
+    admin1Code: text("admin1_code"),
+    admin1Name: text("admin1_name"),
+    admin2Code: text("admin2_code"),
+    admin2Name: text("admin2_name"),
+    locality: text("locality"),
+    /**
+     * Public address of an operational point (collection point, shelter). NOT
+     * used for private residences: those stay reduced to neighborhood or
+     * municipality.
+     */
+    displayAddress: text("display_address"),
+    openingHours: text("opening_hours"),
+    /** Precision is never upgraded by inference (plan 9.1). */
+    locationPrecision: text("location_precision").notNull().default("unknown"),
+
+    verificationLevel: text("verification_level").notNull().default("unknown"),
+
+    /** null when the source doesn't publish this data. Never inferred. */
+    sourceCreatedAt: timestamp("source_created_at", { withTimezone: true }),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+    /** Set by the ingestor, not the source. */
+    observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+
+    contentHash: text("content_hash").notNull(),
+    /** Already-normalized text (no accents, lowercase) for FTS and trigrams. */
+    searchText: text("search_text").notNull(),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("observations_record_latest_idx").on(t.sourceRecordId, t.observedAt),
+    index("observations_type_idx").on(t.recordType),
+    index("observations_admin2_idx").on(t.admin2Code),
+    index("observations_status_idx").on(t.status),
+  ],
+);
+
+// --- Inference usage limiter --------------------------------------
+
+/**
+ * Fixed-window counters to limit calls to the model.
+ *
+ * Stores no IP and no question: `key` is an HMAC of a random cookie id or of
+ * a truncated network. Only limits inference; deterministic search is never
+ * limited.
+ */
+export const aiUsageCounters = pgTable(
+  "ai_usage_counters",
+  {
+    key: text("key").notNull(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.key, t.windowStart] }),
+    index("ai_usage_counters_window_idx").on(t.windowStart),
+  ],
+);
+
+/**
+ * Cache of question INTERPRETATION. Never caches results.
+ *
+ * The "Spanish question" -> filters translation doesn't go stale, so it can
+ * be reused; catalog records are always queried fresh. Caching results would
+ * be dangerous: serving "open" when it already closed is the failure this
+ * project exists to prevent.
+ *
+ * Privacy: the question is NEVER stored. The key is an HMAC of the
+ * normalized text. And it's versioned by prompt: if the vocabulary or the
+ * rules change, old entries stop matching instead of returning stale filters.
+ */
+export const aiIntentCache = pgTable(
+  "ai_intent_cache",
+  {
+    questionHash: text("question_hash").primaryKey(),
+    promptVersion: text("prompt_version").notNull(),
+    intent: jsonb("intent").notNull(),
+    hits: integer("hits").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("ai_intent_cache_created_idx").on(t.createdAt)],
+);
+
+/**
+ * Abuse signals, for deciding whether anyone needs blocking and for telling
+ * the community how the site is being used.
+ *
+ * NO IP ADDRESS IS STORED, and neither is any question text. `subjectKey` is
+ * the same keyed HMAC the rate limiter uses — of a random cookie id, or of a
+ * truncated network (/24, /48). It is enough to block a source of abuse
+ * without ever learning who it is, which is the only thing this needs to do.
+ *
+ * Storing raw IPs would make this a controller of personal data under Ley
+ * 1581, with a privacy notice, consent, deletion rights and a data-subject
+ * channel to answer for — in exchange for knowing an address that serves no
+ * operational purpose here.
+ */
+export const abuseEvents = pgTable(
+  "abuse_events",
+  {
+    id: serial("id").primaryKey(),
+    /** HMAC of a cookie id or a truncated network. Never an address. */
+    subjectKey: text("subject_key").notNull(),
+    /** client | network | global */
+    subjectKind: text("subject_kind").notNull(),
+    /** rate_limited | blocked_attempt */
+    kind: text("kind").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("abuse_events_subject_idx").on(t.subjectKey, t.createdAt),
+    index("abuse_events_created_idx").on(t.createdAt),
+  ],
+);
+
+/**
+ * Blocked subjects.
+ *
+ * A block denies INFERENCE ONLY. Deterministic search is never blocked: a
+ * network key can cover a whole shelter's wifi, and taking away their ability
+ * to search for water because one person hammered the box would be a far worse
+ * outcome than the abuse.
+ *
+ * Blocks expire. A permanent block on a rotating carrier address eventually
+ * punishes a stranger.
+ */
+export const blockedSubjects = pgTable(
+  "blocked_subjects",
+  {
+    subjectKey: text("subject_key").primaryKey(),
+    subjectKind: text("subject_kind").notNull(),
+    /** Free-text note for whoever reviews this later. */
+    reason: text("reason").notNull(),
+    blockedAt: timestamp("blocked_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("blocked_subjects_expires_idx").on(t.expiresAt)],
+);
+
+// --- Relations ----------------------------------------------------------
+
+export const sourcesRelations = relations(sources, ({ many }) => ({
+  records: many(sourceRecords),
+}));
+
+export const sourceRecordsRelations = relations(sourceRecords, ({ one, many }) => ({
+  source: one(sources, { fields: [sourceRecords.sourceId], references: [sources.id] }),
+  observations: many(observations),
+}));
+
+export const observationsRelations = relations(observations, ({ one }) => ({
+  sourceRecord: one(sourceRecords, {
+    fields: [observations.sourceRecordId],
+    references: [sourceRecords.id],
+  }),
+}));
+
+export type Source = typeof sources.$inferSelect;
+export type SourceRecord = typeof sourceRecords.$inferSelect;
+export type Observation = typeof observations.$inferSelect;
+export type NewObservation = typeof observations.$inferInsert;

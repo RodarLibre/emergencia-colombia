@@ -1,0 +1,193 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens.
+ *
+ * The subject is a noticeboard, not a chat product: every answer is somebody
+ * else's notice, carrying its origin, its date and how sure anyone is. The
+ * palette is built around that, and around where it gets read — a phone, in
+ * daylight, in Valle del Cauca. Light is the ground truth; dark follows the
+ * device.
+ *
+ * Three colours carry meaning and nothing else may borrow them:
+ *
+ *   danger  the 123 band. Nowhere else. If red appears twice it stops meaning
+ *           "this is the one that saves your life".
+ *   warn    staleness and sources disagreeing. Not "attention" in general.
+ *   accent  a single civic ink. Interaction, and the person's own words.
+ *
+ * Official sources get no fourth hue — they get a stamp: solid ink, paper
+ * text. A seal, which is what an official source actually is.
+ */
+
+@theme {
+  /* Type. The families are loaded in layout.tsx via next/font and land here. */
+  --font-sans: var(--ff-body), system-ui, sans-serif;
+  --font-display: var(--ff-display), var(--ff-body), system-ui, sans-serif;
+  --font-mono: var(--ff-data), ui-monospace, monospace;
+
+  /* Paper: warm, barely off-white. Not cream — cream plus a serif is a look
+     this project is not making. */
+  --color-bg: oklch(0.988 0.004 95);
+  --color-surface: oklch(0.968 0.005 180);
+  --color-surface-2: oklch(0.938 0.008 190);
+  --color-border: oklch(0.88 0.008 195);
+  --color-rule: oklch(0.8 0.012 200);
+
+  /* Ink: near-black biased toward the accent, so the neutrals read as chosen
+     rather than inherited from a framework. */
+  --color-text: oklch(0.24 0.018 205);
+  --color-muted: oklch(0.51 0.016 205);
+
+  /* The single accent: a petrol ink. Far enough from the reserved red and
+     amber to never be confused with either. */
+  --color-accent: oklch(0.47 0.075 205);
+  --color-accent-fg: oklch(0.99 0.004 95);
+  --color-accent-soft: oklch(0.93 0.022 200);
+
+  /* Reserved: the 123 band. */
+  --color-danger-bg: oklch(0.955 0.032 30);
+  --color-danger-border: oklch(0.78 0.09 30);
+  --color-danger-text: oklch(0.44 0.15 30);
+
+  /* Reserved: not reconfirmed recently, sources disagreeing. */
+  --color-warn-bg: oklch(0.965 0.045 85);
+  --color-warn-border: oklch(0.8 0.09 80);
+  --color-warn-text: oklch(0.44 0.1 65);
+
+  /* The official stamp. Ink ground, paper text — a seal, not a hue. */
+  --color-official-bg: oklch(0.28 0.03 205);
+  --color-official-text: oklch(0.97 0.006 95);
+
+  /* Freshness strip on the left edge of every notice. State encoded in form
+     and position, not only in a word. */
+  --color-strip-fresh: oklch(0.62 0.07 195);
+  --color-strip-aging: oklch(0.75 0.11 80);
+  --color-strip-closed: oklch(0.72 0.012 205);
+
+  /* Rules, not boxes. Corners are nearly square on purpose. */
+  --radius-card: 3px;
+  --radius-sm: 2px;
+}
+
+/*
+ * Dark theme.
+ *
+ * Plain custom properties on `:root`, NOT a nested `@theme`. Tailwind v4 does
+ * not treat a `@theme` inside `@media` as a conditional override — it flattens
+ * it, and the dark values won unconditionally. The site rendered dark for
+ * everyone regardless of their device, which is the opposite of the intent:
+ * this is read outdoors, in daylight, in Valle del Cauca.
+ *
+ * Utilities compile to `var(--color-…)`, so redefining the same names here is
+ * all that is needed, and it actually respects the media query.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Not pure black: an ink that still reads as a surface at 3 a.m. on a
+    phone at 20% brightness, and keeps the red band from vibrating. */
+    --color-bg: oklch(0.175 0.014 210);
+    --color-surface: oklch(0.222 0.015 210);
+    --color-surface-2: oklch(0.268 0.016 210);
+    --color-border: oklch(0.33 0.017 210);
+    --color-rule: oklch(0.4 0.018 210);
+    --color-text: oklch(0.945 0.006 190);
+    --color-muted: oklch(0.72 0.014 200);
+    --color-accent: oklch(0.79 0.086 195);
+    --color-accent-fg: oklch(0.16 0.02 210);
+    --color-accent-soft: oklch(0.3 0.035 200);
+    --color-danger-bg: oklch(0.28 0.06 30);
+    --color-danger-border: oklch(0.46 0.1 30);
+    --color-danger-text: oklch(0.89 0.06 40);
+    --color-warn-bg: oklch(0.285 0.05 78);
+    --color-warn-border: oklch(0.47 0.085 78);
+    --color-warn-text: oklch(0.9 0.075 85);
+    /* Inverted so the seal stays a seal: paper ground, ink text. */
+    --color-official-bg: oklch(0.93 0.01 195);
+    --color-official-text: oklch(0.2 0.02 205);
+    --color-strip-fresh: oklch(0.7 0.08 195);
+    --color-strip-aging: oklch(0.7 0.1 80);
+    --color-strip-closed: oklch(0.42 0.014 210);
+  }
+}
+
+@layer base {
+  html,
+  body {
+    /* No element may widen the document. Phones are the primary device. */
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Long addresses and source names must never push the layout sideways. */
+  p,
+  h1,
+  h2,
+  h3,
+  li,
+  td {
+    overflow-wrap: anywhere;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  /* Dates, counts and coordinates line up in columns across notices. */
+  time,
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /*
+   * Signage: the condensed face, uppercase and tracked out. Used for the
+   * masthead and for labels that name a kind of thing — the register of a
+   * printed municipal bulletin, which is the object this site imitates.
+   */
+  .label {
+    font-family: var(--font-display);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-size: 0.7rem;
+    line-height: 1.2;
+  }
+
+  /* Provenance: who said it and when. Always mono, always quiet. */
+  .stamp {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    line-height: 1.45;
+    letter-spacing: -0.01em;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .enters {
+    animation: enter 260ms cubic-bezier(0.2, 0.6, 0.3, 1) both;
+  }
+
+  @keyframes enter {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+}
