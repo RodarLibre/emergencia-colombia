@@ -72,6 +72,11 @@ Things that look wrong until you know why:
   Serving "open" after a place closed is the failure this project prevents.
 - **Filters apply after reducing to the latest observation**, not before. Filter
   first and a closed place resurfaces because an old observation said "active".
+- **The middleware runs in the Edge runtime, where `process.env[name]` is
+  undefined.** Next inlines statically analysable reads at build time; a
+  dynamic lookup compiles fine and silently ignores every override, in the one
+  layer that sees every request. `src/lib/config.ts` reads only static
+  `process.env.NAME`.
 - **The build must not connect to Postgres.** A previous bug had `next build`
   reaching the dev database.
 

@@ -5,6 +5,8 @@ import { sql } from "drizzle-orm";
 import { db } from "@/db";
 
 import { recordAbuseEvent } from "./abuse";
+import { networkOf, trustedClientIp } from "./client-ip";
+import { QUOTA } from "./config";
 
 /**
  * Usage limiter for calls to the model.
@@ -26,12 +28,17 @@ import { recordAbuseEvent } from "./abuse";
 export type RateLimitDecision =
   { allowed: true } | { allowed: false; reason: "client" | "network" | "global" };
 
-/** Plan 13.9. Configurable once there's real traffic to measure. */
+/** Plan 13.9. Overridable per environment — see `config.ts`. */
 const LIMITS = [
-  { suffix: "c1h", window: "hour" as const, max: 10, reason: "client" as const },
-  { suffix: "c1d", window: "day" as const, max: 30, reason: "client" as const },
-  { suffix: "n1h", window: "hour" as const, max: 60, reason: "network" as const },
-  { suffix: "g1m", window: "minute" as const, max: 20, reason: "global" as const },
+  { suffix: "c1h", window: "hour" as const, max: QUOTA.perClientHour, reason: "client" as const },
+  { suffix: "c1d", window: "day" as const, max: QUOTA.perClientDay, reason: "client" as const },
+  { suffix: "n1h", window: "hour" as const, max: QUOTA.perNetworkHour, reason: "network" as const },
+  {
+    suffix: "g1m",
+    window: "minute" as const,
+    max: QUOTA.perGlobalMinute,
+    reason: "global" as const,
+  },
 ];
 
 function windowStart(unit: "minute" | "hour" | "day", now: Date): Date {
@@ -50,14 +57,17 @@ function keyedHash(value: string): string {
 }
 
 /**
- * Reduces an IP to its network and turns it into a keyed hash.
+ * Reduces a request's origin to a network and turns it into a keyed hash.
  * IPv4 -> /24, IPv6 -> /48. The raw IP is never stored or logged.
+ *
+ * Which header is trusted, and why the FIRST entry of `X-Forwarded-For` is
+ * not, is in `client-ip.ts`. Reading it wrong makes this function return a
+ * value the caller controls, and a quota keyed on an attacker-chosen string
+ * is not a quota.
  */
-export function networkKey(forwardedFor: string | null): string {
-  const ip = (forwardedFor ?? "").split(",")[0]?.trim() ?? "";
-  if (!ip) return keyedHash("sin-ip");
-  if (ip.includes(":")) return keyedHash(ip.split(":").slice(0, 3).join(":"));
-  return keyedHash(ip.split(".").slice(0, 3).join("."));
+export function networkKey(cfConnectingIp: string | null, forwardedFor: string | null): string {
+  const network = networkOf(trustedClientIp(cfConnectingIp, forwardedFor));
+  return keyedHash(network ?? "sin-ip");
 }
 
 /** Extracts the id from the signed cookie. The middleware already validated the signature. */

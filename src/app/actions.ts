@@ -6,6 +6,7 @@ import { composeAnswer, type Answer } from "@/lib/answer";
 import { isBlocked, recordAbuseEvent } from "@/lib/abuse";
 import { resolveQuestion, type OutOfScopeReason } from "@/lib/intent";
 import { hasDomainSignal } from "@/lib/normalize";
+import { CLIENT_IP_HEADER, FORWARDED_FOR_HEADER } from "@/lib/client-ip";
 import { clientKey, consumeAiQuota, networkKey } from "@/lib/ratelimit";
 import { type CatalogStats, getCatalogStats, searchWithFallback } from "@/lib/search";
 import { LOAD_HEADER } from "@/middleware";
@@ -49,7 +50,10 @@ export async function ask(question: string): Promise<AskResult> {
 
   const [cookieStore, headerStore] = await Promise.all([cookies(), headers()]);
   const client = clientKey(cookieStore.get("ayuda_cid")?.value);
-  const network = networkKey(headerStore.get("x-forwarded-for"));
+  const network = networkKey(
+    headerStore.get(CLIENT_IP_HEADER),
+    headerStore.get(FORWARDED_FOR_HEADER),
+  );
 
   // A block denies inference only. Search still works: a network key can cover
   // a whole shelter's wifi, and cutting off their ability to find water would

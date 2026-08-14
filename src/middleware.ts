@@ -1,4 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { FLOOD } from "@/lib/config";
+import {
+  CLIENT_IP_HEADER,
+  FORWARDED_FOR_HEADER,
+  networkOf as truncate,
+  trustedClientIp,
+} from "@/lib/client-ip";
 
 /**
  * Two jobs, both before any page renders:
@@ -26,7 +33,7 @@ const MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
  * NAT, and throttling twenty people looking for water to stop one script would
  * be the wrong trade. A flood is thousands per minute, not hundreds.
  */
-const MAX_REQUESTS_PER_MINUTE = 120;
+const MAX_REQUESTS_PER_MINUTE = FLOOD.maxRequestsPerMinute;
 
 /** Bounded so the defence cannot itself become a memory-exhaustion vector. */
 const MAX_TRACKED_KEYS = 10_000;
@@ -46,7 +53,7 @@ const buckets = new Map<string, Bucket>();
  *
  * The signal reaches the page as a request header instead.
  */
-const HIGH_LOAD_REQUESTS_PER_MINUTE = 600;
+const HIGH_LOAD_REQUESTS_PER_MINUTE = FLOOD.highLoadPerMinute;
 export const LOAD_HEADER = "x-ayuda-load";
 
 let globalWindowStart = 0;
@@ -85,11 +92,11 @@ function tooManyRequests(key: string, now: number): boolean {
  * memory for at most a minute and never written anywhere.
  */
 function networkOf(request: NextRequest): string {
-  const forwarded = request.headers.get("x-forwarded-for") ?? "";
-  const ip = forwarded.split(",")[0]?.trim() ?? "";
-  if (!ip) return "unknown";
-  if (ip.includes(":")) return ip.split(":").slice(0, 3).join(":");
-  return ip.split(".").slice(0, 3).join(".");
+  const ip = trustedClientIp(
+    request.headers.get(CLIENT_IP_HEADER),
+    request.headers.get(FORWARDED_FOR_HEADER),
+  );
+  return truncate(ip) ?? "unknown";
 }
 
 // --- Anonymous browser cookie --------------------------------------------
@@ -109,7 +116,33 @@ async function hmac(value: string, secret: string): Promise<string> {
     .slice(0, 32);
 }
 
+/**
+ * Operator surfaces: ingest and the health probe. Never part of the public
+ * site.
+ */
+const OPERATOR_ONLY = /^\/(api|salud)(\/|$)/;
+
 export async function middleware(request: NextRequest) {
+  if (OPERATOR_ONLY.test(request.nextUrl.pathname)) {
+    // Arriving with CF-Connecting-IP means arriving from the internet, since
+    // the origin is only reachable publicly through the tunnel. From there
+    // these paths do not exist — not "forbidden", absent. 404 rather than 403
+    // because 403 confirms there is something to find.
+    //
+    // Deliberately duplicated with the tunnel's ingress rules: one of the two
+    // will eventually be edited by someone who does not know about the other,
+    // and the site should not become exploitable when that happens.
+    if (request.headers.get(CLIENT_IP_HEADER)) {
+      return new NextResponse(null, { status: 404 });
+    }
+
+    // Internal callers — the container healthcheck, kamal-proxy, cron on the
+    // box — pass straight through. They skip the limiter on purpose: a flood
+    // must never make monitoring believe the app is down, and ingest carries
+    // its own authentication.
+    return NextResponse.next();
+  }
+
   const now = Date.now();
   const busy = globalLoadIsHigh(now);
 
@@ -155,7 +188,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Pages only. `/salud` is excluded so a flood never makes monitoring think
-  // the app is down, and `/api/ingest` because cron is already authenticated.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|salud|api/ingest).*)"],
+  // Everything except static assets. `/salud` and `/api/*` used to be excluded
+  // here; they are matched now so they can be hidden from the internet, and
+  // they still skip the limiter — see the first branch of `middleware`.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
