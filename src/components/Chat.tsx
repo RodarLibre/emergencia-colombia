@@ -10,7 +10,13 @@ import { relativeTime } from "@/lib/format";
 import type { OutOfScopeReason } from "@/lib/intent";
 import { findPossibleSameplace, statusesDisagree } from "@/lib/relate";
 import type { CatalogStats } from "@/lib/search";
-import { CATEGORY_LABELS, RECORD_TYPE_LABELS, type Category, type RecordTypeV1 } from "@/lib/vocab";
+import {
+  CATEGORY_LABELS,
+  OPERATING_ADMIN1_NAMES,
+  RECORD_TYPE_LABELS,
+  type Category,
+  type RecordTypeV1,
+} from "@/lib/vocab";
 
 /**
  * The search screen.
@@ -57,6 +63,12 @@ const NOTE_TEXT: Partial<Record<AnswerNote, { lead: string; rest: string }>> = {
     rest: "Hay mucha gente preguntando ahora mismo.",
   },
 };
+
+/** "a, b y c" — como se enumera en español, con "y" antes del último. */
+function listaEnEspanol(items: readonly string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  return `${items.slice(0, -1).join(", ")} y ${items.at(-1)}`;
+}
 
 /** Escapes regex metacharacters so a municipality name can be dropped into a `RegExp` safely. */
 function escapeRegExp(s: string): string {
@@ -412,15 +424,19 @@ function Home({
  * peor que callarse.
  */
 function CoverageView({ municipality, department }: { municipality: string; department: string }) {
+  // Se arma desde la configuración, no a mano: este texto ya quedó mintiendo
+  // una vez, cuando el área paso del Valle al Eje Cafetero y la frase siguió
+  // diciendo "del Valle del Cauca".
+  const cubiertos = listaEnEspanol(OPERATING_ADMIN1_NAMES);
+
   return (
     <div className="border-warn-border bg-warn-bg text-warn-text border-l-2 px-3 py-3">
       <p className="font-display text-[1.15rem] leading-tight font-bold">
         Todavía no llegamos a {municipality}.
       </p>
       <p className="mt-2 text-[0.92rem] leading-relaxed">
-        Las fuentes conectadas hoy publican del Valle del Cauca, y {municipality} está en{" "}
-        {department}. Prefiero decírtelo a mostrarte lugares de otro departamento como si te
-        sirvieran.
+        Hoy hay fuentes conectadas de {cubiertos}, y {municipality} está en {department}. Prefiero
+        decírtelo a mostrarte lugares de otro departamento como si te sirvieran.
       </p>
       <p className="mt-2 text-[0.92rem] leading-relaxed">
         Si conocés un sitio que esté publicando ayuda en {department}, escribinos: conectar una

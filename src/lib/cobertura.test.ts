@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { findMunicipalityInText, findMunicipalityOutsideCoverage } from "./normalize";
+import { OPERATING_ADMIN1_NAMES } from "./vocab";
 
 /**
  * Cuando la pregunta nombra un municipio que no cubrimos.
@@ -64,5 +65,18 @@ describe("no inventa lugares", () => {
   it("exige preposición: un nombre suelto no basta", () => {
     // "La Victoria" y "Argelia" son municipios y tambien palabras corrientes.
     expect(findMunicipalityOutsideCoverage("la victoria fue grande")).toBeNull();
+  });
+});
+
+describe("el area cubierta se nombra desde la configuracion", () => {
+  it("los cuatro departamentos tienen nombre", () => {
+    // El mensaje de "todavia no llegamos ahi" se armaba a mano y quedo
+    // mintiendo cuando el area paso del Valle al Eje Cafetero: seguia diciendo
+    // "del Valle del Cauca". Ahora sale de aca.
+    expect(OPERATING_ADMIN1_NAMES).toEqual(["Valle del Cauca", "Risaralda", "Caldas", "Quindío"]);
+  });
+
+  it("ningun nombre quedo como codigo sin resolver", () => {
+    for (const n of OPERATING_ADMIN1_NAMES) expect(n).not.toMatch(/^\d+$/);
   });
 });
