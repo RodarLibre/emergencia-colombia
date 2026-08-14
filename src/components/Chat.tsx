@@ -10,6 +10,7 @@ import { relativeTime } from "@/lib/format";
 import type { OutOfScopeReason } from "@/lib/intent";
 import { findPossibleSameplace, statusesDisagree } from "@/lib/relate";
 import type { CatalogStats } from "@/lib/search";
+import { joinInSpanish } from "@/lib/spanish";
 import {
   CATEGORY_LABELS,
   OPERATING_ADMIN1_NAMES,
@@ -73,12 +74,6 @@ const NOTE_TEXT: Partial<Record<AnswerNote, { lead: string; rest: string }>> = {
     rest: "Hay mucha gente preguntando ahora mismo.",
   },
 };
-
-/** "a, b y c" — como se enumera en español, con "y" antes del último. */
-function listaEnEspanol(items: readonly string[]): string {
-  if (items.length <= 1) return items[0] ?? "";
-  return `${items.slice(0, -1).join(", ")} y ${items.at(-1)}`;
-}
 
 /** Escapes regex metacharacters so a municipality name can be dropped into a `RegExp` safely. */
 function escapeRegExp(s: string): string {
@@ -437,7 +432,7 @@ function CoverageView({ municipality, department }: { municipality: string; depa
   // Se arma desde la configuración, no a mano: este texto ya quedó mintiendo
   // una vez, cuando el área paso del Valle al Eje Cafetero y la frase siguió
   // diciendo "del Valle del Cauca".
-  const cubiertos = listaEnEspanol(OPERATING_ADMIN1_NAMES);
+  const cubiertos = joinInSpanish(OPERATING_ADMIN1_NAMES);
 
   return (
     <div className="border-warn-border bg-warn-bg text-warn-text border-l-2 px-3 py-3">

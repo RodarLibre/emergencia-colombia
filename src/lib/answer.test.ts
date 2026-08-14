@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { composeAnswer } from "./answer";
 import type { ResolvedQuery } from "./intent";
-import type { BroadenedSearch } from "./search";
+import type { BroadenedSearch, SearchResult } from "./search";
 
 /**
  * El vocabulario dejó de poder negar una respuesta.
@@ -25,6 +25,37 @@ function query(overrides: Partial<ResolvedQuery> = {}): ResolvedQuery {
     outOfScopeReason: null,
     guessed: false,
     interpretedBy: "model",
+    ...overrides,
+  };
+}
+
+/** Un resultado cualquiera: la frase que se prueba no depende de sus campos. */
+function resultado(overrides: Partial<SearchResult> = {}): SearchResult {
+  return {
+    observationId: 1,
+    sourceRecordId: 1,
+    recordType: "collection_point",
+    status: "active",
+    title: "Casa cultural",
+    description: null,
+    categoryCodes: ["medical_assistance", "medical_supplies"],
+    admin2Name: "Pereira",
+    locality: null,
+    displayAddress: null,
+    openingHours: null,
+    locationPrecision: "unknown",
+    verificationLevel: "unknown",
+    sourceUpdatedAt: null,
+    observedAt: new Date("2026-08-14T00:00:00Z"),
+    sourceName: "Mapa de Emergencia",
+    sourceSlug: "mapa-emergencia",
+    sourceTrustLabel: "community",
+    noLongerListed: false,
+    lastSeenAt: new Date("2026-08-14T00:00:00Z"),
+    contacts: [],
+    canonicalUrl: null,
+    municipalityUnspecified: false,
+    freshness: "fresh",
     ...overrides,
   };
 }
@@ -99,5 +130,29 @@ describe("cuando no hay resultados", () => {
     });
 
     expect(answer.text).toBe("Nadie publica agua en Cali.");
+  });
+});
+
+/**
+ * La frase que sí estaba mal en producción: "recibe atención médica y insumos
+ * médicos". Delante del sonido i la conjunción es "e".
+ */
+describe("cuando sí hay resultados", () => {
+  it("usa «e» antes de una categoría que empieza por i", () => {
+    const answer = composeAnswer({
+      question: "medicamentos en pereira",
+      query: query({
+        types: ["collection_point"],
+        categories: ["medical_assistance", "medical_supplies"],
+        admin2Name: "Pereira",
+      }),
+      search: { results: [resultado()], dropped: [], companions: [] },
+      offTopic: false,
+      busy: false,
+    });
+
+    expect(answer.text).toBe(
+      "1 punto de acopio recibe atención médica e insumos médicos en Pereira.",
+    );
   });
 });

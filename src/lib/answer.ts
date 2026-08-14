@@ -1,5 +1,6 @@
 import type { ResolvedQuery } from "./intent";
 import type { BroadenedSearch, SearchResult } from "./search";
+import { joinInSpanish } from "./spanish";
 import {
   CATEGORY_LABELS,
   RECORD_TYPE_LABELS,
@@ -78,9 +79,10 @@ function describePlainCategories(query: ResolvedQuery, connector: "y" | "ni" = "
     .map((c) => CATEGORY_LABELS[c as Category])
     .filter((l): l is string => Boolean(l))
     .map((l) => l.toLowerCase());
-  if (labels.length === 0) return "";
-  if (labels.length === 1) return labels[0]!;
-  return `${labels.slice(0, -1).join(", ")} ${connector} ${labels.at(-1)}`;
+  if (connector === "y") return joinInSpanish(labels);
+  if (labels.length <= 1) return labels[0] ?? "";
+  // "ni" never changes shape, so it does not go through joinInSpanish.
+  return `${labels.slice(0, -1).join(", ")} ni ${labels.at(-1)}`;
 }
 
 /**
