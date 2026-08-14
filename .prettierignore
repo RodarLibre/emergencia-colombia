@@ -16,3 +16,7 @@ src/lib/data/municipios.json
 # Prose docs, not code — left to their authors' formatting.
 *.md
 docs/
+
+# Agent worktrees: full copies of this repo inside it. They must never be
+# committed, shipped to the Docker build context, or formatted.
+.claude/worktrees/

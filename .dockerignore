@@ -9,3 +9,7 @@ drizzle
 .DS_Store
 Dockerfile
 docker-compose.yml
+
+# Agent worktrees: full copies of this repo inside it. They must never be
+# committed, shipped to the Docker build context, or formatted.
+.claude/worktrees/

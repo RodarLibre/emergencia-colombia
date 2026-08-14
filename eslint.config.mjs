@@ -58,6 +58,10 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "node_modules/**",
     "coverage/**",
+    // Agent worktrees are whole copies of this repo living inside it. Linting
+    // them reports every finding twice and, worse, reports them against paths
+    // that no longer exist once the worktree is removed.
+    ".claude/worktrees/**",
   ]),
 ]);
 

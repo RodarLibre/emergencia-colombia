@@ -13,3 +13,7 @@ drizzle/meta/
 .kamal/secrets
 .kamal/secrets-common
 .kamal/secrets.*
+
+# Agent worktrees: full copies of this repo inside it. They must never be
+# committed, shipped to the Docker build context, or formatted.
+.claude/worktrees/
