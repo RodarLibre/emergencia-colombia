@@ -145,7 +145,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             {/*
               Authorship, in the same quiet mono the rest of the sheet uses for
               provenance. Who made the instrument is provenance too — but it
-              sits below the disclaimer, never above it.
+              sits below the disclaimer, never above it. The repository belongs
+              on the same line: a site that asks to be trusted about where its
+              answers come from should let anyone read how it reaches them.
             */}
             <div className="stamp px-5 pb-4">
               Hecho con{" "}
@@ -160,6 +162,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 className="hover:text-accent underline underline-offset-2"
               >
                 Rodar Libre
+              </a>
+              <span aria-hidden="true"> · </span>
+              <a
+                href="https://github.com/RodarLibre/emergencia-colombia"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-accent underline underline-offset-2"
+              >
+                Código fuente
               </a>
             </div>
           </footer>
