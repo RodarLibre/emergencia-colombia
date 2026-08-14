@@ -53,11 +53,7 @@ describe("searchWithFallback", () => {
     });
     expect(results.length).toBeGreaterThan(0);
     expect(dropped).toEqual(["text"]);
-    // Un registro sin municipio se incluye a propósito cuando su fuente cubre
-    // el departamento; lo que no puede aparecer es otro municipio.
-    expect(results.every((r) => r.admin2Code === municipality || r.municipalityUnspecified)).toBe(
-      true,
-    );
+    // Que no se pierda el municipio lo cubre el test de más abajo.
   });
 
   it("drops an impossible category before giving up", async () => {
