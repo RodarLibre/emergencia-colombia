@@ -1,5 +1,7 @@
 # Buscador de ayuda — Colombia earthquake
 
+### **https://emergenciacolombia.org**
+
 One question box in Spanish that searches across several emergency websites at
 once. Every result says where it came from, when the source last updated it, and
 links back to the original.
@@ -8,29 +10,41 @@ It does not accept new reports. It does not verify information. It does not
 replace the 123 emergency line.
 
 > Docs are in English; the interface is in Spanish. The audience is people in
-> Valle del Cauca — see `CONVENTIONS.md`.
+> Valle del Cauca and the Eje Cafetero — see `CONVENTIONS.md`.
+
+MIT licensed. Take whatever is useful: the vocabulary, the DANE boundary
+lookup, the provenance model. No reciprocity expected — other collectives are
+building their own tools and connecting beats converging.
 
 ---
 
 ## Current state
 
-Working end to end with **101 real records** from three connected sources, plus
-fake seed data for local development.
+**Live at https://emergenciacolombia.org**, serving **923 records** from three
+connected sources across **66 municipalities** of Valle del Cauca, Risaralda,
+Caldas and Quindío. Ingestion runs every 15 minutes.
 
 Done:
 
 - Immutable observations with full provenance per source.
 - Deterministic search: Spanish full-text, accent- and typo-tolerant, filtered
   by type, municipality and category.
-- Natural-language question box that degrades to plain text search.
-- Cross-source disagreement warnings, without merging records.
+- Natural-language question box. The model turns a question into filters and
+  never sees a record; any failure degrades to deterministic search.
+- **Municipality computed from coordinates** against DANE boundaries, in
+  JavaScript at ingest time — no PostGIS.
+- Cross-source disagreement warnings, matched by address, without merging.
+- **"The source no longer publishes this"** when a record drops out of a feed —
+  never deleted, because absence is not proof it closed.
+- **"We don't reach there yet"** when a question names a municipality outside
+  the covered area, instead of quietly answering about somewhere else.
 - Freshness and verification labels that name who claims what.
-- Deterministic out-of-scope detection routing to official channels.
+- Deterministic out-of-scope detection routing to official channels, including
+  a dedicated path for questions about injured or missing people.
 - Per-record change history.
-- Source directory with per-source data completeness.
-- Rate limiter and intent cache.
+- Rate limiter that never stores an IP, abuse tracking, flood shedding.
 - Production data-integrity guard, count-collapse quarantine.
-- Docker image, Kamal template, cron-triggerable ingestion.
+- Daily database backups, cron-driven ingestion, Cloudflare Tunnel.
 
 Deliberately not done:
 
@@ -41,12 +55,13 @@ Deliberately not done:
 
 Known gaps:
 
-- **Not deployed.** Nobody can use it yet, which is the only gap that matters.
-- **No outreach to source owners.** The longest-lead item, and it blocks the
-  richest source.
-- Relevance and recency are not blended in the ordering.
+- **Coverage is thin outside the four departments.** ~279 records carry no
+  municipality because they fall outside the loaded boundaries.
+- `RECORD_TYPES_V1` has no type for "an operation in progress", so rescue
+  points are filed as service points, which reads slightly wrong.
 - `AMBIGUOUS_WITH_NEIGHBORHOODS` was assembled from naming conventions rather
   than a gazetteer, and needs review by someone with local knowledge.
+- Relevance and recency are not blended in the ordering.
 
 ---
 
@@ -85,7 +100,10 @@ To enable the natural-language box, set `DO_GRADIENT_API_KEY` and
 |---|---|
 | [docs/USING-THE-BOT.md](docs/USING-THE-BOT.md) | What to ask, how to read a result, what it will not answer |
 | [docs/ADDING-A-SOURCE.md](docs/ADDING-A-SOURCE.md) | The most valuable contribution: connecting one more source |
+| [docs/VOCABULARIO.md](docs/VOCABULARIO.md) | **Contributing without writing code**: the words the search understands |
 | [docs/DEPLOY-PROXMOX.md](docs/DEPLOY-PROXMOX.md) | Deploying to a Proxmox LXC with Kamal, including the nesting requirement |
+| [docs/DOMINIO-CLOUDFLARE.md](docs/DOMINIO-CLOUDFLARE.md) | Domain and Cloudflare Tunnel, and what stays off the public internet |
+| [docs/MUDANZA-DE-HOST.md](docs/MUDANZA-DE-HOST.md) | Moving the deployment to another host without touching DNS |
 | [CONVENTIONS.md](CONVENTIONS.md) | Language rule and the ten product invariants |
 | [AGENTS.md](AGENTS.md) | Orientation for AI agents, including where the traps are |
 
@@ -145,16 +163,17 @@ is looking for when they do not use the vocabulary's words.
 
 ## Sources
 
-Verified 2026-08-12/13 by reading each `robots.txt` and one public page.
+Verified 2026-08-12/14 by reading each `robots.txt` and one public page.
 
 | Source | robots.txt | State | Detail |
 |---|---|---|---|
-| Donde Ayudo Valle | none | **connected** (86) | No API at all: collection points are embedded in a static JS chunk. Richest source found. |
-| Cali Ayuda | none | **connected** (8) | `/reports` is server-rendered. Only "Punto de ayuda" records ingested. |
+| mapa-emergencia | none | **connected** (~780) | Feed agreed with the owner, who published `/api/publico` on request. Carries staffing per point — how many volunteers are there and how many are missing — which no other source has. Its conditions are encoded, not just promised: a record without a confirmation time is not ingested. |
+| Donde Ayudo Valle | none | **connected** (95) | No API at all: collection points are embedded in a static JS chunk. |
+| Cali Ayuda | none | **disabled** | Nine records, none with an address — the source does not publish them. Its contribution became noise once a richer source covered the same city. |
 | terremotocolombia.co | **yes** | **blocked** | Allows `/`, disallows `/api/`, naming `Claude-User` and `Claude-Web` explicitly. All record data loads from that API. Needs owner agreement. |
 | reddeapoyocolombia.com | yes | **no data yet** | `/misiones` renders server-side but is empty today: *"preferimos mostrar cero antes que mostrar una sin verificar"*. |
-| mapa-emergencia | none | **investigated** | Has `/api/snapshot` with no declared restriction, but a high update rate, WhatsApp contacts, and the load falling on one volunteer's Worker. Its `/api/puntos/{id}/bitacora` suggests it already keeps a confirmation history worth federating properly. |
-| SGC (seismic) | none | **connected** (7) | `archive.sgc.gov.co/feed/v1.0.1/summary/*.json` — static versioned GeoJSON, current to the minute. Colombia only, since the incident date, filtered by felt reports. |
+| CORAG (`ayuda.corag.app`) | none | **in conversation** | MCP with four read tools, including search by category and proximity. 37 collection points with coordinates fit v1; the rest are individual requests and offers, which do not. Publishes WhatsApp as a first-class field with per-person consent. |
+| SGC (seismic) | none | **connected** (13) | `archive.sgc.gov.co/feed/v1.0.1/summary/*.json` — static versioned GeoJSON, current to the minute. Colombia only, since the incident date, filtered by felt reports. |
 | SNIGRD | none (404) | not investigated | Government, public, no declared restriction. |
 | QuakeReport | — | not a source | Open source with a public API. A collaborator, not something to scrape. |
 | pet sources | various | out of v1 scope | See *Data scope*. |
@@ -430,7 +449,10 @@ department, exact nationally if unique, partial within the department. If a name
 is ambiguous outside the operating area it returns `null` and the text stays a
 free-text search — better than silently filtering by the wrong municipality.
 
-`OPERATING_ADMIN1_CODE` (default `76`) sets the coverage area. The data model
+`OPERATING_ADMIN1_CODES` (default `76,66,17,63` — Valle del Cauca, Risaralda,
+Caldas, Quindío) sets the coverage area; the first one names it in the
+singular. Adding a department is downloading its DANE boundaries and adding the
+code, with no logic to touch. The data model
 supports the whole country.
 
 ---
