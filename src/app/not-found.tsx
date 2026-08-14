@@ -1,5 +1,9 @@
 import Link from "next/link";
 
+// Como el resto de las rutas: el layout consulta la base y el prerenderizado
+// no puede alcanzarla durante el build.
+export const dynamic = "force-dynamic";
+
 /**
  * Not found.
  *
