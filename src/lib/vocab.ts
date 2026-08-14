@@ -239,16 +239,39 @@ export const MUNICIPIOS_SOURCE = {
  * the whole country, but only one area at a time is announced as covered.
  * 76 = Valle del Cauca.
  */
-export const OPERATING_ADMIN1_CODE = process.env.OPERATING_ADMIN1_CODE ?? "76";
+/**
+ * Departamentos cubiertos, en codigo DANE y separados por coma.
+ *
+ * El primero es el principal: da nombre al area cuando hay que nombrarla en
+ * singular. Se amplio del Valle al Eje Cafetero porque el feed de Artefacto
+ * Films ya traia puntos de Risaralda, Caldas y Quindio, y sin sus limites
+ * quedaban sin municipio y por tanto invisibles.
+ */
+export const OPERATING_ADMIN1_CODES: readonly string[] = (
+  process.env.OPERATING_ADMIN1_CODES ??
+  process.env.OPERATING_ADMIN1_CODE ??
+  "76,66,17,63"
+)
+  .split(",")
+  .map((c) => c.trim())
+  .filter(Boolean);
 
-export const OPERATING_MUNICIPALITIES: readonly Municipality[] = ALL_MUNICIPALITIES.filter(
-  (m) => m.dept === OPERATING_ADMIN1_CODE,
+/** El principal, para lo que necesita un solo nombre. */
+export const OPERATING_ADMIN1_CODE = OPERATING_ADMIN1_CODES[0]!;
+
+export const OPERATING_MUNICIPALITIES: readonly Municipality[] = ALL_MUNICIPALITIES.filter((m) =>
+  OPERATING_ADMIN1_CODES.includes(m.dept),
 );
 
 export const OPERATING_ADMIN1 = {
   code: OPERATING_ADMIN1_CODE,
-  name: OPERATING_MUNICIPALITIES[0]?.deptName ?? "Colombia",
+  name: ALL_MUNICIPALITIES.find((m) => m.dept === OPERATING_ADMIN1_CODE)?.deptName ?? "Colombia",
 } as const;
+
+/** Los nombres de los departamentos cubiertos, para decirlos en la interfaz. */
+export const OPERATING_ADMIN1_NAMES: readonly string[] = OPERATING_ADMIN1_CODES.map(
+  (code) => ALL_MUNICIPALITIES.find((m) => m.dept === code)?.deptName ?? code,
+);
 
 export const MUNICIPALITY_BY_CODE: ReadonlyMap<string, Municipality> = new Map(
   ALL_MUNICIPALITIES.map((m) => [m.code, m]),

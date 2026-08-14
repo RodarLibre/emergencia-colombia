@@ -1,4 +1,4 @@
-import limites from "./data/limites-valle.json";
+import limites from "./data/limites-municipios.json";
 import { MUNICIPALITY_BY_CODE, type Municipality } from "./vocab";
 
 /**
@@ -14,9 +14,10 @@ import { MUNICIPALITY_BY_CODE, type Municipality } from "./vocab";
  * DANE y la búsqueda sigue siendo la de siempre. Por eso no hace falta
  * PostGIS, que este proyecto descartó a propósito.
  *
- * Solo carga los 42 municipios del Valle. Una coordenada de Medellín devuelve
- * null, que es la respuesta correcta: está fuera de la cobertura declarada, y
- * decir que no sabemos es mejor que asignarle el municipio más cercano.
+ * Solo carga los municipios de los departamentos cubiertos (ver
+ * `limites-municipios.json`). Una coordenada de Medellín devuelve null, que es
+ * la respuesta correcta: está fuera de la cobertura declarada, y decir que no
+ * sabemos es mejor que asignarle el municipio más cercano.
  */
 
 type Anillo = readonly (readonly number[])[];

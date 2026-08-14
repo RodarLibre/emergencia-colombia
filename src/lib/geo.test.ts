@@ -18,6 +18,11 @@ const DENTRO: Array<[string, number, number, string]> = [
   ["Centro de Cartago", 4.7469, -75.9116, "Cartago"],
   ["Centro de Jamundí", 3.2606, -76.5389, "Jamundí"],
   ["Centro de Yumbo", 3.5847, -76.4955, "Yumbo"],
+  // Eje Cafetero.
+  ["Plaza de Bolívar, Pereira", 4.8133, -75.6961, "Pereira"],
+  ["Centro de Manizales", 5.0689, -75.5174, "Manizales"],
+  ["Centro de Armenia", 4.5339, -75.6811, "Armenia"],
+  ["Centro de Dosquebradas", 4.8347, -75.6749, "Dosquebradas"],
 ];
 
 describe("en qué municipio cae una coordenada", () => {
@@ -32,7 +37,6 @@ describe("fuera de la cobertura devuelve null, no el más cercano", () => {
   const FUERA: Array<[string, number, number]> = [
     ["Medellín", 6.2442, -75.5812],
     ["Bogotá", 4.711, -74.0721],
-    ["Pereira", 4.8087, -75.6906],
     ["Popayán", 2.4448, -76.6147],
     ["océano Pacífico", 3.5, -79.5],
   ];

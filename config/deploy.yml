@@ -66,7 +66,8 @@ builder:
 env:
   clear:
     NODE_ENV: production
-    OPERATING_ADMIN1_CODE: "76"
+    # Valle del Cauca y Eje Cafetero.
+    OPERATING_ADMIN1_CODES: "76,66,17,63"
     DO_GRADIENT_BASE_URL: https://inference.do-ai.run/v1
     DO_GRADIENT_MODEL: openai-gpt-oss-20b
     # The rate limiter already exists, so this can be turned on. With "off"

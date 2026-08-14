@@ -14,12 +14,11 @@ import { findMunicipalityInText, findMunicipalityOutsideCoverage } from "./norma
 
 describe("municipios fuera del area cubierta", () => {
   const FUERA: Array<[string, string, string]> = [
-    ["albergues en Pereira", "Pereira", "Risaralda"],
-    ["dónde llevo agua en Manizales", "Manizales", "Caldas"],
-    // El dato del DANE trae "Quindio" sin tilde; se cita tal cual viene.
-    ["puntos de acopio en Armenia", "Armenia", "Quindio"],
     ["albergues en Medellín", "Medellín", "Antioquia"],
-    ["ayuda en Chinchiná", "Chinchiná", "Caldas"],
+    ["dónde llevo agua en Popayán", "Popayán", "Cauca"],
+    ["puntos de acopio en Ibagué", "Ibagué", "Tolima"],
+    ["ayuda en Neiva", "Neiva", "Huila"],
+    ["albergues en Pasto", "Pasto", "Nariño"],
   ];
 
   for (const [pregunta, nombre, depto] of FUERA) {
@@ -42,6 +41,12 @@ describe("no se activa cuando el municipio sí está cubierto", () => {
     "ayuda en Roldanillo",
     "acopio en Zarzal",
     "albergues en Sevilla",
+    // Eje Cafetero: entro al area cubierta junto con el Valle.
+    "albergues en Pereira",
+    "dónde llevo agua en Manizales",
+    "puntos de acopio en Armenia",
+    "ayuda en Chinchiná",
+    "albergues en Dosquebradas",
   ]) {
     it(`"${pregunta}"`, () => {
       expect(findMunicipalityInText(pregunta)).not.toBeNull();

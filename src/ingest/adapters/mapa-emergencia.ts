@@ -45,10 +45,9 @@ export const MAPA_EMERGENCIA_SOURCE = {
   mode: "partner_feed",
   trustLabel: "community",
   pollIntervalSeconds: 900,
-  // El feed es nacional, pero la cobertura declarada de este sitio es el
-  // Valle. Un punto sin municipio calculado no debe aparecer en búsquedas de
-  // otro departamento, así que la cobertura se registra en 76 y los puntos de
-  // fuera quedan sin municipio y sin cobertura que los rescate.
+  // El feed es nacional. Se registra el departamento principal solo como
+  // referencia: cada punto lleva su municipio calculado desde las coordenadas,
+  // y los de fuera del area cubierta quedan sin municipio a proposito.
   coverageAdmin1Code: "76",
   contactNote:
     "Feed publico acordado con la fuente el 2026-08-14. Condiciones: mostrar siempre la hora de confirmacion, enlazar a la ficha para contacto, y atribuir con enlace al mapa.",
