@@ -1,8 +1,12 @@
 # Kamal template. Replace everything that says CAMBIAR.
 #
-#   kamal setup          # first time
-#   kamal deploy         # subsequent deploys
-#   kamal app logs -f
+#   bin/kamal setup      # first time
+#   bin/kamal deploy     # subsequent deploys
+#   bin/kamal app logs -f
+#
+# Host is read from DEPLOY_HOST in .env (gitignored) — see .env.example.
+# bin/kamal loads .env before invoking kamal; running the `kamal` binary
+# directly requires DEPLOY_HOST to already be exported in your shell.
 #
 # WARNING ABOUT WHERE TO HOST THIS
 #
@@ -21,7 +25,7 @@ image: rodarlibre/emergencia-colombia
 
 servers:
   web:
-    - 100.99.29.57
+    - <%= ENV.fetch("DEPLOY_HOST") %>
 
 proxy:
   # Stage 1: reachable over Tailscale only, so there is no public hostname and
@@ -57,7 +61,7 @@ builder:
   # development Mac is arm64, so a local build would run the whole Next.js
   # compile under QEMU emulation — slow, and prone to running out of memory.
   # The LXC builds it natively.
-  remote: ssh://root@100.99.29.57
+  remote: ssh://root@<%= ENV.fetch("DEPLOY_HOST") %>
 
 env:
   clear:
@@ -82,7 +86,7 @@ env:
 accessories:
   db:
     image: postgres:17-alpine
-    host: 100.99.29.57
+    host: <%= ENV.fetch("DEPLOY_HOST") %>
     port: "127.0.0.1:5432:5432"
     env:
       clear:
