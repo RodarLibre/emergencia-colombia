@@ -554,7 +554,14 @@ function EmptyActions({
           onClick={() => onPick(withoutMunicipality(question, municipality) || question)}
           className="border-rule hover:border-accent flex min-h-[3rem] items-center justify-between gap-3 border px-3 text-left text-[0.92rem] leading-snug"
         >
-          <span>Buscar en todo el Valle, sin {municipality}</span>
+          {/*
+            No se nombra el departamento. Esta frase decia "en todo el Valle"
+            y a alguien en Pereira le ofrecia buscar en un departamento que no
+            es el suyo — el mismo error que ya corregimos en CoverageView. La
+            busqueda ampliada no se limita a un departamento: quita el
+            municipio y busca en todo lo que tenemos.
+          */}
+          <span>Buscar en toda la zona, no solo en {municipality}</span>
           <span aria-hidden="true" className="text-accent shrink-0 font-semibold">
             →
           </span>

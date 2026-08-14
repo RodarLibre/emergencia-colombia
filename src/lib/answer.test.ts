@@ -66,3 +66,38 @@ describe("cuando solo el modelo entendió la pregunta", () => {
     expect(answer.results).toEqual([]);
   });
 });
+
+/**
+ * "Nadie publica atención médica y insumos médicos en Pereira" salió a
+ * pantalla. El español pide concordancia negativa: después de "nadie publica"
+ * la conjunción es "ni". Ninguna prueba miraba esta frase, que es la que ve
+ * quien no encontró lo que buscaba — la peor para que suene mal escrita.
+ */
+describe("cuando no hay resultados", () => {
+  it("enlaza las categorías con «ni», no con «y»", () => {
+    const answer = composeAnswer({
+      question: "medicamentos en pereira",
+      query: query({
+        categories: ["medical_assistance", "medical_supplies"],
+        admin2Name: "Pereira",
+      }),
+      search: sinResultados,
+      offTopic: false,
+      busy: false,
+    });
+
+    expect(answer.text).toBe("Nadie publica atención médica ni insumos médicos en Pereira.");
+  });
+
+  it("no mete conjunción cuando la categoría es una sola", () => {
+    const answer = composeAnswer({
+      question: "agua en cali",
+      query: query({ categories: ["water"], admin2Name: "Cali" }),
+      search: sinResultados,
+      offTopic: false,
+      busy: false,
+    });
+
+    expect(answer.text).toBe("Nadie publica agua en Cali.");
+  });
+});

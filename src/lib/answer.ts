@@ -65,15 +65,22 @@ function describeWhere(query: ResolvedQuery): string {
   return query.admin2Name ? ` en ${query.admin2Name}` : "";
 }
 
-/** Lowercase, natural-language category list: "agua", "agua y alimentos". Never the database's own casing. */
-function describePlainCategories(query: ResolvedQuery): string {
+/**
+ * Lowercase, natural-language category list: "agua", "agua y alimentos". Never
+ * the database's own casing.
+ *
+ * The connector is a parameter because Spanish requires negative concord: after
+ * "nadie publica" it is "ni", not "y". "Nadie publica atención médica y insumos
+ * médicos" is wrong, and it showed on screen.
+ */
+function describePlainCategories(query: ResolvedQuery, connector: "y" | "ni" = "y"): string {
   const labels = query.categories
     .map((c) => CATEGORY_LABELS[c as Category])
     .filter((l): l is string => Boolean(l))
     .map((l) => l.toLowerCase());
   if (labels.length === 0) return "";
   if (labels.length === 1) return labels[0]!;
-  return `${labels.slice(0, -1).join(", ")} y ${labels.at(-1)}`;
+  return `${labels.slice(0, -1).join(", ")} ${connector} ${labels.at(-1)}`;
 }
 
 /**
@@ -149,7 +156,7 @@ export function composeAnswer(input: ComposeInput): Answer {
   }
 
   if (results.length === 0) {
-    const what = describePlainCategories(query) || "eso";
+    const what = describePlainCategories(query, "ni") || "eso";
     return {
       text: `Nadie publica ${what}${describeWhere(query)}.`,
       highlight: null,
