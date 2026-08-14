@@ -149,16 +149,18 @@ export function findPossibleSameplace(
       const b = prepared[j]!;
 
       if (a.r.sourceSlug === b.r.sourceSlug) continue;
-      if (a.r.recordType !== b.r.recordType) continue;
-      if (a.r.admin2Name !== b.r.admin2Name) continue;
 
-      // La misma dirección es una señal mucho más fuerte que parecerse de
-      // nombre, y no exige que los títulos coincidan: dos fuentes bautizan el
-      // mismo sitio distinto. Sin esto, seis direcciones idénticas del Valle
-      // aparecían dos veces sin que nada lo dijera.
+      // La misma dirección exacta es una señal mucho más fuerte que cualquier
+      // otra, y se basta sola. No exige el mismo título —dos fuentes bautizan
+      // distinto el mismo sitio—, ni el mismo tipo, ni el mismo municipio: de
+      // seis direcciones repetidas en el Valle, cinco estaban catalogadas con
+      // tipos distintos y una sin municipio de un lado. Que no coincidan en
+      // eso es precisamente lo que la persona necesita ver.
       const mismaDireccion = a.dir !== null && a.dir === b.dir;
 
       if (!mismaDireccion) {
+        if (a.r.recordType !== b.r.recordType) continue;
+        if (a.r.admin2Name !== b.r.admin2Name) continue;
         if (sharedCount(a.t, b.t) < MIN_SHARED_TOKENS) continue;
         if (overlap(a.t, b.t) < OVERLAP_THRESHOLD) continue;
       }

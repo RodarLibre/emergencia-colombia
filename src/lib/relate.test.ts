@@ -147,3 +147,27 @@ describe("misma dirección en dos fuentes", () => {
     expect(findPossibleSameplace([a, b]).size).toBe(0);
   });
 });
+
+describe("una dirección idéntica se basta sola", () => {
+  it("relaciona aunque cada fuente lo catalogue distinto", () => {
+    // Caso real: cinco de las seis direcciones repetidas del Valle estaban
+    // como punto de acopio en una fuente y punto de servicio en la otra.
+    const a = result({
+      sourceRecordId: 1,
+      sourceSlug: "donde-ayudo-valle",
+      recordType: "collection_point",
+      admin2Name: "Cali",
+      title: "Acopio parroquia",
+      displayAddress: "Carrera 39/38A #5D-09",
+    });
+    const b = result({
+      sourceRecordId: 2,
+      sourceSlug: "mapa-emergencia",
+      recordType: "service_point",
+      admin2Name: null,
+      title: "Operación remoción",
+      displayAddress: "Carrera 39/38A #5D-09",
+    });
+    expect(findPossibleSameplace([a, b]).get(1)?.length).toBe(1);
+  });
+});
