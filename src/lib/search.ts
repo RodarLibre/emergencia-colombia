@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
+import type { SourceContact } from "@/db/schema";
 
 import { checkProductionDataIntegrity, excludeDemoSources } from "./guards";
 import { buildTextQuery, fold } from "./normalize";
@@ -58,6 +59,14 @@ export type SearchResult = {
   noLongerListed: boolean;
   /** When the source last showed this record in a listing. */
   lastSeenAt: Date;
+  /**
+   * Contacto publicado por la fuente, espejado del estado actual.
+   *
+   * Solo llega de fuentes con acuerdo que recogen consentimiento por persona.
+   * No esta en el historial ni en el texto indexado: si la fuente lo quita,
+   * desaparece en la siguiente lectura.
+   */
+  contacts: SourceContact[];
 };
 
 type Row = {
@@ -83,6 +92,7 @@ type Row = {
   municipality_unspecified?: boolean;
   no_longer_listed?: boolean;
   last_seen_at: string | Date;
+  contacts: SourceContact[] | null;
 };
 
 const DEFAULT_LIMIT = 40;
@@ -207,6 +217,7 @@ export async function searchRecords(filters: SearchFilters): Promise<SearchResul
         o.search_text,
         sr.canonical_url,
         sr.last_seen_at,
+        sr.contacts,
         -- The newest read across this source's visible records: effectively
         -- the timestamp of its last successful ingest.
         MAX(sr.last_seen_at) OVER (PARTITION BY sr.source_id) AS source_last_read,
@@ -283,6 +294,7 @@ function mapRow(r: Row, now: Date): SearchResult {
     municipalityUnspecified: Boolean(r.municipality_unspecified),
     noLongerListed: Boolean(r.no_longer_listed),
     lastSeenAt: new Date(r.last_seen_at),
+    contacts: r.contacts ?? [],
     // Freshness from what the source says, if it says it; otherwise from
     // when this system observed it.
     freshness: computeFreshness(recordType, sourceUpdatedAt ?? observedAt, now),
@@ -342,7 +354,7 @@ export async function findCompanions(results: readonly SearchResult[]): Promise<
         o.category_codes, o.admin2_code, o.admin2_name, o.locality, o.display_address,
         o.opening_hours, o.location_precision, o.verification_level, o.source_updated_at,
         o.observed_at, o.search_text,
-        sr.canonical_url, sr.last_seen_at,
+        sr.canonical_url, sr.last_seen_at, sr.contacts,
         MAX(sr.last_seen_at) OVER (PARTITION BY sr.source_id) AS source_last_read,
         s.name AS source_name, s.slug AS source_slug, s.trust_label, s.coverage_admin1_code
       FROM observations o

@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import type { SourceContact } from "@/db/schema";
+
 import { relativeTime } from "@/lib/format";
 import type { SearchResult } from "@/lib/search";
 import {
@@ -59,6 +61,13 @@ function band(result: SearchResult): { className: string; label: string } {
     className: "bg-warn-bg text-warn-text border-warn-border border-b",
     label: `${FRESHNESS_LABELS[result.freshness]} ${relativeTime(lastUpdate)}`,
   };
+}
+
+/** Un WhatsApp se abre en WhatsApp; un correo en el correo. */
+function enlaceDeContacto(c: SourceContact): string {
+  if (c.kind === "whatsapp") return `https://wa.me/${c.value.replace(/[^0-9]/g, "")}`;
+  if (c.kind === "correo") return `mailto:${c.value}`;
+  return `tel:${c.value.replace(/[^0-9+]/g, "")}`;
 }
 
 export function ResultCard({
@@ -178,6 +187,26 @@ export function ResultCard({
           <p className="stamp text-muted">
             {verificationLabel(result.verificationLevel, result.sourceName)}
           </p>
+
+          {result.contacts.length > 0 ? (
+            <div className="border-border flex flex-col gap-1 border-t pt-2">
+              {result.contacts.map((c) => (
+                <a
+                  key={`${c.kind}:${c.value}`}
+                  href={enlaceDeContacto(c)}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="text-accent text-[0.92rem] font-semibold underline underline-offset-2"
+                >
+                  {c.label ? `${c.label} · ` : ""}
+                  {c.value}
+                </a>
+              ))}
+              {/* Se dice de quien es el dato: no es nuestro, es de la fuente,
+                  y es ella quien tiene la autorizacion de esa persona. */}
+              <p className="stamp text-muted">Contacto publicado por {result.sourceName}</p>
+            </div>
+          ) : null}
 
           <div className="flex gap-1.5">
             {result.canonicalUrl ? (

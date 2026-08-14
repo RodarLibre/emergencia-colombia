@@ -25,6 +25,7 @@ function result(overrides: Partial<SearchResult>): SearchResult {
     sourceTrustLabel: "community",
     noLongerListed: false,
     lastSeenAt: new Date("2026-08-13T00:00:00Z"),
+    contacts: [],
     canonicalUrl: null,
     municipalityUnspecified: false,
     freshness: "fresh",

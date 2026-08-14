@@ -72,3 +72,21 @@ Gaps worth closing, highest value first:
 3. Guard tests: quarantine on count collapse, demo-data wall, rate limit
    windows.
 4. ESLint + Prettier. Neither is configured yet.
+
+## Contactos
+
+Cambio el 2026-08-14, cuando aparecio una fuente (CORAG) cuyo modelo es
+conectar personas por WhatsApp y que recoge autorizacion por persona.
+
+Antes: no se copiaban contactos, nunca. Esa regla se escribio cuando la unica
+forma de tener un telefono era rasparlo de un sitio que jamas lo consintio.
+
+Ahora: se espejan **solo** desde fuentes que lo declaran (`mirrorsContacts`),
+y viven en el estado actual del registro, nunca en el historial. Un telefono no
+es un hecho sobre el punto a lo largo del tiempo; es un puntero vivo a una
+persona. Si la fuente lo quita, desaparece en la siguiente lectura, sin
+migraciones ni borrados a mano.
+
+Lo que NO cambio: la redaccion sigue corriendo en todo texto libre de todos los
+adaptadores, los contactos no entran al texto indexado —nadie debe ser
+encontrable *por* su numero— y siempre se muestran citando a la fuente.

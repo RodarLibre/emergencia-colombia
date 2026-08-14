@@ -63,6 +63,21 @@ export const sourceRecords = pgTable(
     firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
     lastContentHash: text("last_content_hash"),
+    /**
+     * Contacto publicado por la fuente, en el estado actual y NUNCA en el
+     * historial.
+     *
+     * Un telefono no es un hecho sobre el punto a lo largo del tiempo: es un
+     * puntero vivo a una persona. Vive aca porque aca se sobreescribe en cada
+     * lectura y desaparece cuando la fuente deja de publicarlo, asi que una
+     * baja en el origen se propaga sola. En `observations` quedaria para
+     * siempre.
+     *
+     * Solo lo llenan las fuentes con `mirrorsContacts`: las que recogen
+     * consentimiento por persona y con las que hay acuerdo. Del resto se
+     * redacta como siempre.
+     */
+    contacts: jsonb("contacts").$type<SourceContact[] | null>(),
     /** Only when the source explicitly withdraws it. Never due to absence. */
     withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
     /** Hidden due to moderation or a removal request. */
@@ -235,6 +250,15 @@ export const blockedSubjects = pgTable(
 export const sourcesRelations = relations(sources, ({ many }) => ({
   records: many(sourceRecords),
 }));
+
+/** Un canal de contacto publicado por la fuente, citado con su nombre. */
+export type SourceContact = {
+  /** "whatsapp" | "telefono" | "correo" */
+  kind: string;
+  value: string;
+  /** Como lo nombra la fuente, si lo nombra. Nunca se infiere. */
+  label?: string | null;
+};
 
 export const sourceRecordsRelations = relations(sourceRecords, ({ one, many }) => ({
   source: one(sources, { fields: [sourceRecords.sourceId], references: [sources.id] }),

@@ -1,3 +1,4 @@
+import type { SourceContact } from "@/db/schema";
 import type { Category, RecordTypeV1, Status } from "@/lib/vocab";
 
 /** What any adapter produces. This is the contract with `upsertRecords`. */
@@ -18,6 +19,16 @@ export type ParsedRecord = {
   sourceUpdatedAt: Date | null;
   contentHash: string;
   searchText: string;
+  /**
+   * Contacto publicado por la fuente. Solo lo llenan los adaptadores de
+   * fuentes con `mirrorsContacts`; el resto lo deja vacio y redacta el texto.
+   *
+   * Queda fuera de `contentHash` y de `searchText` a proposito: un cambio de
+   * telefono no es un cambio de estado del punto —no debe crear una
+   * observacion nueva— y el buscador no debe poder encontrar a una persona
+   * por su numero.
+   */
+  contacts?: SourceContact[] | null;
 };
 
 export class ParserError extends Error {}
@@ -32,6 +43,16 @@ export type SourceConfig = {
   pollIntervalSeconds: number;
   contactNote: string;
   coverageAdmin1Code?: string;
+  /**
+   * La fuente recoge consentimiento por persona y hay acuerdo con ella para
+   * espejar sus contactos.
+   *
+   * Se declara por fuente, nunca global: raspar un telefono de un sitio que
+   * nunca lo consintio sigue estando prohibido. Y cuando se espeja, va al
+   * estado actual del registro y no al historial, para que una baja en el
+   * origen se propague sola.
+   */
+  mirrorsContacts?: boolean;
 };
 
 /**

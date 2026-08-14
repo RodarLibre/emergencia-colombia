@@ -140,6 +140,7 @@ export async function upsertRecords(
           firstSeenAt: observedAt,
           lastSeenAt: observedAt,
           lastContentHash: rec.contentHash,
+          contacts: rec.contacts ?? null,
         })
         .returning();
       if (!created) throw new Error(`Could not create source_record ${rec.externalId}`);
@@ -148,10 +149,12 @@ export async function upsertRecords(
     } else {
       sourceRecordId = existing.id;
       if (existing.lastContentHash === rec.contentHash) {
-        // No changes: only records that it was seen again.
+        // Sin cambios de contenido, pero el contacto se espeja igual: es lo
+        // que hace que una baja en la fuente se propague sola. Si dejo de
+        // venir, aca queda en null.
         await db
           .update(sourceRecords)
-          .set({ lastSeenAt: observedAt })
+          .set({ lastSeenAt: observedAt, contacts: rec.contacts ?? null })
           .where(eq(sourceRecords.id, existing.id));
         result.unchanged += 1;
         continue;
@@ -162,6 +165,7 @@ export async function upsertRecords(
           lastSeenAt: observedAt,
           lastContentHash: rec.contentHash,
           canonicalUrl: rec.recordUrl,
+          contacts: rec.contacts ?? null,
         })
         .where(eq(sourceRecords.id, existing.id));
       result.updated += 1;

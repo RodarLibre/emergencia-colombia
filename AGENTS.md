@@ -29,12 +29,21 @@ incidentally.
 
 1. Every public result names its source, with a timestamp and a link.
 2. Observations are immutable. A change creates a new one; the history stays.
+   Contact data is **not** an observation: a phone number is a live pointer to a
+   person, not a fact about the place over time. It lives in the record's
+   current state, is overwritten on every read, and disappears when the source
+   stops publishing it — so a takedown at the source propagates on its own.
 3. A record is never deleted because it stopped appearing in a listing. Only an
    explicit withdrawal by the source removes it.
 4. Nothing is merged. Conflicting sources appear side by side, and disagreement
    is labeled.
 5. Location precision is never upgraded by inference.
-6. Contact data is not copied. Link to the source instead.
+6. Contact data is mirrored only from sources that collect consent per person
+   and have an agreement with us — declared per source with `mirrorsContacts`,
+   never globally. Scraping a number off a site that never consented is still
+   forbidden, redaction still runs on every adapter's free text, and contacts
+   never enter the indexed text: nobody should be findable *by* their phone
+   number. Shown attributed: "contact published by X", never as ours.
 7. `robots.txt` and source terms are respected, with no workaround.
 8. The model translates the question, never the answer. It never sees a record.
 9. Any AI failure degrades to deterministic search, never to an error page.
