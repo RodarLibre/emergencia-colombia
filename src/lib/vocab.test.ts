@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { computeFreshness } from "./vocab";
+import { ALL_MUNICIPALITIES, computeFreshness } from "./vocab";
 
 const NOW = new Date("2026-08-13T12:00:00Z");
 const minutesAgo = (m: number) => new Date(NOW.getTime() - m * 60_000);
@@ -32,5 +32,15 @@ describe("computeFreshness", () => {
   it("is always fresh for official_update, no matter the age", () => {
     expect(computeFreshness("official_update", minutesAgo(0), NOW)).toBe("fresh");
     expect(computeFreshness("official_update", minutesAgo(100_000), NOW)).toBe("fresh");
+  });
+});
+
+describe("erratas de la fuente oficial", () => {
+  it("Quindío lleva tilde, aunque el MGN del DANE la omita", () => {
+    // Es la unica errata de acentuacion en los 33 departamentos. Se corrige en
+    // `scripts/fetch-municipios.mjs`, para que no reaparezca al regenerar.
+    const nombres = new Set(ALL_MUNICIPALITIES.map((m) => m.deptName));
+    expect(nombres.has("Quindío")).toBe(true);
+    expect(nombres.has("Quindio")).toBe(false);
   });
 });

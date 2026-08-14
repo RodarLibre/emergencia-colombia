@@ -66,13 +66,25 @@ async function main() {
     throw new Error(`Solo llegaron ${features.length} municipios; se esperaban ~1121.`);
   }
 
+  /**
+   * Erratas de la fuente oficial.
+   *
+   * El MGN del DANE trae 32 de 33 departamentos con su tilde correcta y 390
+   * municipios acentuados; "Quindio" es el unico que se le escapa. Se corrige
+   * aca, donde se genera el archivo, para que no reaparezca cuando alguien lo
+   * regenere.
+   */
+  const ERRATAS = new Map([["Quindio", "Quindío"]]);
+
+  const corregir = (nombre) => ERRATAS.get(nombre) ?? nombre;
+
   const municipios = features
     .map((f) => f.attributes)
     .map((a) => ({
       code: String(a.mpio_cdpmp),
-      name: titleCase(String(a.mpio_cnmbr)),
+      name: corregir(titleCase(String(a.mpio_cnmbr))),
       dept: String(a.dpto_ccdgo),
-      deptName: titleCase(String(a.dpto_cnmbr)),
+      deptName: corregir(titleCase(String(a.dpto_cnmbr))),
     }))
     .sort((a, b) => a.code.localeCompare(b.code));
 
