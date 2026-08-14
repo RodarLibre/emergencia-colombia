@@ -31,6 +31,11 @@ async function freshModules() {
   return { guards, search, saludRoute };
 }
 
+/** The route reads the query string, so it needs a real Request. */
+function healthRequest(query = ""): Request {
+  return new Request(`http://localhost/salud${query}`);
+}
+
 describe("production data integrity guard", () => {
   it("with an enabled demo-% source and NODE_ENV=production, blocks and reports it", async () => {
     const slug = `demo-test-${Math.random().toString(36).slice(2, 8)}`;
@@ -56,7 +61,7 @@ describe("production data integrity guard", () => {
     const results = await search.searchRecords({});
     expect(results).toEqual([]);
 
-    const response = await saludRoute.GET();
+    const response = await saludRoute.GET(healthRequest());
     expect(response.status).toBe(503);
     const body = (await response.json()) as { estado: string };
     expect(body.estado).toBe("bloqueado");
@@ -82,7 +87,7 @@ describe("production data integrity guard", () => {
     const integrity = await guards.checkProductionDataIntegrity();
     expect(integrity.ok).toBe(true);
 
-    const response = await saludRoute.GET();
+    const response = await saludRoute.GET(healthRequest());
     expect(response.status).toBe(200);
   });
 });

@@ -224,3 +224,26 @@ kamal setup
 
 Point a VPS at the same domain and redeploy. Keeping a recent `pg_dump` off-site
 is what makes that a ten-minute operation instead of a rebuild.
+
+## Comprobar que la inferencia funciona de verdad
+
+Cualquier fallo de IA degrada a búsqueda determinista y no da error — eso es
+deliberado (invariante 9) y significa que un proveedor caído no se nota. Para
+verlo hay que preguntarlo:
+
+```bash
+curl -s -H "Authorization: Bearer $INGEST_SECRET" \
+  "http://$DEPLOY_HOST/salud?inferencia=1"
+```
+
+`{"inferencia":{"ok":true,"estado":"ok","ms":...}}` es lo esperado.
+`http_402` significa que la llave autentica pero no está habilitada para
+ejecutar modelos: hace falta una *model access key* de Gradient (prefijo
+`sk-do-`), no un token de cuenta (`doo_v1_`/`dop_v1_`).
+
+Va autenticado con `INGEST_SECRET` porque cada llamada gasta plata en el
+proveedor: abierto sería una forma de quemarte el presupuesto en bucle.
+
+El healthcheck del contenedor usa `/salud` a secas, sin el parámetro: gasta una
+llamada al proveedor y un proveedor caído nunca debe tumbar el contenedor,
+porque el sitio funciona sin él.

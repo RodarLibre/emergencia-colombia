@@ -73,6 +73,17 @@ env:
     # the question box still works as plain-text search, which is a valid
     # way to go to production without spending on inference.
     AI_ENABLED: "on"
+
+    # Operational limits. Commented out means "use the default compiled in";
+    # see src/lib/config.ts. Uncomment, then `kamal env push` — that restarts
+    # the container with the new value and does NOT rebuild the image, which
+    # is the point: a limit can be raised while a spike is happening.
+    # QUOTA_CLIENT_HOUR: "10"
+    # QUOTA_CLIENT_DAY: "30"
+    # QUOTA_NETWORK_HOUR: "60"
+    # QUOTA_GLOBAL_MINUTE: "20"
+    # FLOOD_NETWORK_PER_MINUTE: "120"
+    # FLOOD_HIGH_LOAD_PER_MINUTE: "600"
   secret:
     - DATABASE_URL
     - DO_GRADIENT_API_KEY
