@@ -98,13 +98,43 @@ const OVERLAP_THRESHOLD = 0.5;
 const MIN_SHARED_TOKENS = 2;
 
 /**
+ * La dirección, reducida a lo que la identifica.
+ *
+ * Dos fuentes escriben la misma esquina de formas distintas —"Calle 9 con
+ * Carrera 44", "calle 9 con cra 44"— así que se comparan sin tildes, sin
+ * puntuación, sin espacios y con las abreviaturas de vía unificadas.
+ */
+const ABREVIATURAS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/\bcra\b|\bcr\b|\bkra\b|\bkr\b/g, "carrera"],
+  [/\bcll\b|\bcl\b/g, "calle"],
+  [/\bav\b|\bavda\b/g, "avenida"],
+  [/\bdg\b/g, "diagonal"],
+  [/\btv\b|\btrans\b/g, "transversal"],
+  [/\bno\b|\bnro\b|\bnum\b/g, ""],
+];
+
+function claveDireccion(direccion: string | null): string | null {
+  if (!direccion) return null;
+  let s = fold(direccion);
+  for (const [re, con] of ABREVIATURAS) s = s.replace(re, con);
+  s = s.replace(/[^a-z0-9]/g, "");
+  // Menos de ocho caracteres útiles no identifica nada: "cll5" no es una
+  // dirección, es el principio de muchas.
+  return s.length >= 8 ? s : null;
+}
+
+/**
  * Returns, per sourceRecordId, the other results that could be the same
  * place seen by another source. Only relates results from different sources.
  */
 export function findPossibleSameplace(
   results: readonly SearchResult[],
 ): Map<number, SearchResult[]> {
-  const prepared = results.map((r) => ({ r, t: tokens(`${r.title} ${r.locality ?? ""}`) }));
+  const prepared = results.map((r) => ({
+    r,
+    t: tokens(`${r.title} ${r.locality ?? ""}`),
+    dir: claveDireccion(r.displayAddress),
+  }));
   const out = new Map<number, SearchResult[]>();
 
   const link = (id: number, other: SearchResult) => {
@@ -121,8 +151,17 @@ export function findPossibleSameplace(
       if (a.r.sourceSlug === b.r.sourceSlug) continue;
       if (a.r.recordType !== b.r.recordType) continue;
       if (a.r.admin2Name !== b.r.admin2Name) continue;
-      if (sharedCount(a.t, b.t) < MIN_SHARED_TOKENS) continue;
-      if (overlap(a.t, b.t) < OVERLAP_THRESHOLD) continue;
+
+      // La misma dirección es una señal mucho más fuerte que parecerse de
+      // nombre, y no exige que los títulos coincidan: dos fuentes bautizan el
+      // mismo sitio distinto. Sin esto, seis direcciones idénticas del Valle
+      // aparecían dos veces sin que nada lo dijera.
+      const mismaDireccion = a.dir !== null && a.dir === b.dir;
+
+      if (!mismaDireccion) {
+        if (sharedCount(a.t, b.t) < MIN_SHARED_TOKENS) continue;
+        if (overlap(a.t, b.t) < OVERLAP_THRESHOLD) continue;
+      }
 
       link(a.r.sourceRecordId, b.r);
       link(b.r.sourceRecordId, a.r);
