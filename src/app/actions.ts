@@ -5,7 +5,7 @@ import { cookies, headers } from "next/headers";
 import { composeAnswer, type Answer } from "@/lib/answer";
 import { isBlocked, recordAbuseEvent } from "@/lib/abuse";
 import { resolveQuestion, type OutOfScopeReason } from "@/lib/intent";
-import { hasDomainSignal } from "@/lib/normalize";
+import { findMunicipalityOutsideCoverage, hasDomainSignal } from "@/lib/normalize";
 import { CLIENT_IP_HEADER, FORWARDED_FOR_HEADER } from "@/lib/client-ip";
 import { clientKey, consumeAiQuota, networkKey } from "@/lib/ratelimit";
 import { type CatalogStats, getCatalogStats, searchWithFallback } from "@/lib/search";
@@ -24,7 +24,8 @@ import { LOAD_HEADER } from "@/middleware";
 
 export type AskResult =
   | { kind: "answer"; answer: Answer; filters: AppliedFilters }
-  | { kind: "out_of_scope"; reason: OutOfScopeReason };
+  | { kind: "out_of_scope"; reason: OutOfScopeReason }
+  | { kind: "out_of_coverage"; municipality: string; department: string };
 
 export type AppliedFilters = {
   types: string[];
@@ -75,6 +76,13 @@ export async function ask(question: string): Promise<AskResult> {
   const query = await resolveQuestion(trimmed, { allowInference: quota.allowed });
 
   if (query.outOfScopeReason) return { kind: "out_of_scope", reason: query.outOfScopeReason };
+
+  // Nombro un municipio que no cubrimos. Antes esa palabra se perdia y la
+  // respuesta salia con lugares de otro departamento, sin avisar.
+  const afuera = findMunicipalityOutsideCoverage(trimmed);
+  if (afuera) {
+    return { kind: "out_of_coverage", municipality: afuera.name, department: afuera.deptName };
+  }
 
   const search = await searchWithFallback({
     q: query.q,

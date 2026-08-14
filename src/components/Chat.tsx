@@ -34,7 +34,8 @@ const SUGGESTIONS = [
 type View =
   | { kind: "home" }
   | { kind: "answer"; question: string; answer: Answer; filters: AppliedFilters }
-  | { kind: "scope"; question: string; reason: OutOfScopeReason };
+  | { kind: "scope"; question: string; reason: OutOfScopeReason }
+  | { kind: "coverage"; question: string; municipality: string; department: string };
 
 const NOTE_TEXT: Partial<Record<AnswerNote, { lead: string; rest: string }>> = {
   // Nadie se queda sin respuesta porque una palabra no estuviera en una lista,
@@ -108,7 +109,14 @@ export function Chat() {
       setView(
         result.kind === "out_of_scope"
           ? { kind: "scope", question: text, reason: result.reason }
-          : { kind: "answer", question: text, answer: result.answer, filters: result.filters },
+          : result.kind === "out_of_coverage"
+            ? {
+                kind: "coverage",
+                question: text,
+                municipality: result.municipality,
+                department: result.department,
+              }
+            : { kind: "answer", question: text, answer: result.answer, filters: result.filters },
       );
     });
   }
@@ -134,6 +142,8 @@ export function Chat() {
           <Home stats={stats} onPick={run} />
         ) : view.kind === "scope" ? (
           <ScopeView reason={view.reason} />
+        ) : view.kind === "coverage" ? (
+          <CoverageView municipality={view.municipality} department={view.department} />
         ) : (
           <AnswerView
             question={view.question}
@@ -265,7 +275,8 @@ function SendButton({ expanded, disabled }: { expanded: boolean; disabled: boole
  * the same underlying question ("what do these fuentes actually have?").
  */
 function StatusStrip({ view, stats }: { view: View; stats: CatalogStats | null }) {
-  if (view.kind === "scope") return null;
+  // Ni el rechazo por alcance ni el de cobertura tienen filtros que resumir.
+  if (view.kind === "scope" || view.kind === "coverage") return null;
 
   if (view.kind === "home") {
     if (!stats || stats.sourceCount === 0) return null;
@@ -392,6 +403,33 @@ function Home({
  * Styled in the reserved red, not amber: these are questions about a life or
  * a person's safety, which is exactly what red is reserved for.
  */
+/**
+ * Nombro un municipio que todavia no cubrimos.
+ *
+ * Antes esa palabra se perdia y la respuesta traia lugares de otro
+ * departamento sin decirlo: alguien en Pereira recibia albergues de Trujillo,
+ * Valle. Decir que no llegamos ahi es util; contestar sobre otro lado es
+ * peor que callarse.
+ */
+function CoverageView({ municipality, department }: { municipality: string; department: string }) {
+  return (
+    <div className="border-warn-border bg-warn-bg text-warn-text border-l-2 px-3 py-3">
+      <p className="font-display text-[1.15rem] leading-tight font-bold">
+        Todavía no llegamos a {municipality}.
+      </p>
+      <p className="mt-2 text-[0.92rem] leading-relaxed">
+        Las fuentes conectadas hoy publican del Valle del Cauca, y {municipality} está en{" "}
+        {department}. Prefiero decírtelo a mostrarte lugares de otro departamento como si te
+        sirvieran.
+      </p>
+      <p className="mt-2 text-[0.92rem] leading-relaxed">
+        Si conocés un sitio que esté publicando ayuda en {department}, escribinos: conectar una
+        fuente más es lo que más sirve.
+      </p>
+    </div>
+  );
+}
+
 function ScopeView({ reason }: { reason: OutOfScopeReason }) {
   return (
     <div className="border-danger-border bg-danger-bg text-danger-text flex flex-col gap-3 border p-4">

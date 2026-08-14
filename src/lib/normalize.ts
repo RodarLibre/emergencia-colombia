@@ -348,6 +348,71 @@ const MUNICIPALITY_ALIASES: ReadonlyMap<string, string> = new Map([
   ["buga", "76111"], // Guadalajara de Buga
 ]);
 
+/**
+ * Municipios del pais que NO estan en el area cubierta, en una sola alternancia.
+ *
+ * Sin esto, "albergues en Pereira" perdia la palabra Pereira —el indice de
+ * texto solo tiene los 42 del Valle— y el sitio respondia con albergues de
+ * Trujillo sin decir nada. Contestar sobre otro departamento en silencio es
+ * peor que no contestar.
+ *
+ * Se exige preposicion locativa: muchos municipios se llaman como palabras
+ * corrientes ("La Victoria", "Argelia", "Bolivar") y un match suelto traeria
+ * falsos positivos todo el tiempo.
+ */
+const OUTSIDE_MATCHER = ((): { re: RegExp; byName: ReadonlyMap<string, Municipality> } => {
+  const operating = new Set(OPERATING_MUNICIPALITIES.map((m) => m.code));
+  const byName = new Map<string, Municipality>();
+  for (const m of ALL_MUNICIPALITIES) {
+    if (operating.has(m.code)) continue;
+    const key = fold(m.name);
+    // Nombres repetidos en varios departamentos no se adivinan.
+    if (byName.has(key)) continue;
+    byName.set(key, m);
+  }
+  // Nombres repetidos: gana la capital de departamento, que en la codificacion
+  // del DANE termina en 001. Quien escribe "en Armenia" se refiere a la del
+  // Quindio (63001), no al pueblo de Antioquia (05059). Si ninguna es capital,
+  // no se adivina y se descarta.
+  const homonimos = new Map<string, Municipality[]>();
+  for (const m of ALL_MUNICIPALITIES) {
+    if (operating.has(m.code)) continue;
+    const key = fold(m.name);
+    const lista = homonimos.get(key);
+    if (lista) lista.push(m);
+    else homonimos.set(key, [m]);
+  }
+  for (const [key, lista] of homonimos) {
+    if (lista.length === 1) continue;
+    const capital = lista.find((m) => m.code.endsWith("001"));
+    if (capital) byName.set(key, capital);
+    else byName.delete(key);
+  }
+
+  const nombres = [...byName.keys()]
+    .filter((n) => n.length >= 5)
+    .sort((a, b) => b.length - a.length)
+    .map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+
+  return {
+    re: new RegExp(`\\b${PLACE_PREPOSITIONS}\\s+(${nombres.join("|")})\\b`),
+    byName,
+  };
+})();
+
+/**
+ * El municipio que nombra la pregunta cuando queda fuera del area cubierta.
+ * Devuelve null si nombra uno de adentro, o ninguno.
+ */
+export function findMunicipalityOutsideCoverage(
+  text: string | null | undefined,
+): Municipality | null {
+  if (!text) return null;
+  if (findMunicipalityInText(text)) return null;
+  const m = OUTSIDE_MATCHER.re.exec(fold(text));
+  return m?.[1] ? (OUTSIDE_MATCHER.byName.get(m[1]) ?? null) : null;
+}
+
 export function findMunicipalityInText(text: string | null | undefined): Municipality | null {
   if (!text) return null;
   const hay = fold(text);
