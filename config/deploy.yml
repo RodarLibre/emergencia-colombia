@@ -75,13 +75,15 @@ env:
     # way to go to production without spending on inference.
     AI_ENABLED: "on"
 
+    # Se leen del entorno igual que DEPLOY_HOST, asi el valor vive una sola
+    # vez en .env y llega a produccion con `source .env && kamal deploy`.
     # Precios del modelo en uso, por millon de tokens. Si cambian y esto no,
     # el costo reportado miente. Ver src/lib/costo.ts.
-    AI_PRECIO_ENTRADA_USD_POR_MILLON: "0.05"
-    AI_PRECIO_SALIDA_USD_POR_MILLON: "0.20"
+    AI_PRICE_INPUT_USD_PER_MILLION: "<%= ENV.fetch('AI_PRICE_INPUT_USD_PER_MILLION', '0.05') %>"
+    AI_PRICE_OUTPUT_USD_PER_MILLION: "<%= ENV.fetch('AI_PRICE_OUTPUT_USD_PER_MILLION', '0.20') %>"
     # Techo declarado en dolares; 0 lo omite del reporte.
-    AI_PRESUPUESTO_USD: "0"
-    SITE_URL: "https://emergenciacolombia.org"
+    AI_BUDGET_USD: "<%= ENV.fetch('AI_BUDGET_USD', '0') %>"
+    SITE_URL: "<%= ENV.fetch('SITE_URL', 'https://emergenciacolombia.org') %>"
 
     # Los puntos de rescate del feed de Artefacto Films: sitios donde hay una
     # operacion en curso. Entran porque "donde puedo ayudar con mano de obra"

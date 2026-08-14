@@ -23,12 +23,12 @@ import { positiveNumberFromEnv } from "./config";
  * agregue el segundo, el cambio es una migracion y un GROUP BY.
  */
 export const PRECIOS = {
-  entradaPorMillon: positiveNumberFromEnv("AI_PRECIO_ENTRADA_USD_POR_MILLON", 0.05),
-  salidaPorMillon: positiveNumberFromEnv("AI_PRECIO_SALIDA_USD_POR_MILLON", 0.2),
+  entradaPorMillon: positiveNumberFromEnv("AI_PRICE_INPUT_USD_PER_MILLION", 0.05),
+  salidaPorMillon: positiveNumberFromEnv("AI_PRICE_OUTPUT_USD_PER_MILLION", 0.2),
 } as const;
 
 /** Techo de gasto declarado, para poder avisar antes de rozarlo. */
-export const PRESUPUESTO_USD = positiveNumberFromEnv("AI_PRESUPUESTO_USD", 0);
+export const PRESUPUESTO_USD = positiveNumberFromEnv("AI_BUDGET_USD", 0);
 
 export function costoUsd(inputTokens: number, outputTokens: number): number {
   return (
