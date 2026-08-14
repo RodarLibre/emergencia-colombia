@@ -392,6 +392,13 @@ const CATEGORY_KEYWORDS: ReadonlyArray<readonly [string, string]> = [
   ["mercado", "food"],
   ["merienda", "food"],
   ["almuerzo", "food"],
+  // Comida preparada, no mercados: un comedor y una olla comunitaria son la
+  // forma en que la gente pregunta por almorzar hoy, no por que le entreguen
+  // un mercado para cocinar.
+  ["comedor", "food"],
+  ["olla comunitaria", "food"],
+  ["desayun", "food"],
+  ["cena", "food"],
   ["medicament", "medical_supplies"],
   ["insumo", "medical_supplies"],
   ["gasa", "medical_supplies"],
@@ -399,6 +406,8 @@ const CATEGORY_KEYWORDS: ReadonlyArray<readonly [string, string]> = [
   ["curacion", "medical_supplies"],
   ["medic", "medical_assistance"],
   ["enfermer", "medical_assistance"],
+  ["vacuna", "medical_assistance"],
+  ["jornada de salud", "medical_assistance"],
   ["herid", "medical_assistance"],
   ["albergue", "shelter"],
   ["dormir", "shelter"],
@@ -406,6 +415,10 @@ const CATEGORY_KEYWORDS: ReadonlyArray<readonly [string, string]> = [
   ["alojamiento", "shelter"],
   ["carpa", "shelter"],
   ["colchon", "shelter"],
+  // Quien lo perdió todo no escribe "albergue": escribe lo que le pasó.
+  ["sin casa", "shelter"],
+  ["sin techo", "shelter"],
+  ["sin hogar", "shelter"],
   ["transporte", "transport"],
   ["camion", "transport"],
   ["vehiculo", "transport"],
@@ -436,6 +449,8 @@ const CATEGORY_KEYWORDS: ReadonlyArray<readonly [string, string]> = [
   ["jabon", "hygiene"],
   ["panal", "hygiene"],
   ["toalla", "hygiene"],
+  ["banar", "hygiene"],
+  ["ducha", "hygiene"],
   ["voluntari", "volunteers"],
   ["mascota", "animal_support"],
   ["animal", "animal_support"],
@@ -488,8 +503,20 @@ const DOMAIN_TERMS = [
   "emergencia",
   "desastre",
   "afectad",
-  "derrumbe",
+  // Raíz, no palabra entera: "se derrumbó" no contiene "derrumbe".
+  "derrumb",
   "escombro",
+  // La palabra que usan las propias fuentes en sus títulos: Cali Ayuda
+  // publica "Recolección: campaña de solidaridad con...". Alguien que copie
+  // ese nombre recibía "eso no lo tengo".
+  "recolec",
+  // Se perdió la casa. Es la frase más desesperada que nos puede llegar y no
+  // pasaba el filtro.
+  "se cayo",
+  "se vino abajo",
+  "perdi mi casa",
+  "perdi todo",
+  "quede sin",
   "magnitud",
   // Giving and receiving
   "ayuda",
