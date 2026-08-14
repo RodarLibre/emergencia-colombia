@@ -46,6 +46,19 @@ const SE_BUSCAN = [
   "necesito pañales",
   "necesito guantes",
   "hay agua potable",
+  // Segunda tanda: coloquialismos colombianos y grupos de personas.
+  "donde dan remesa",
+  "reparten anchetas",
+  "hay cambuches",
+  "necesito un toldo",
+  "dónde consigo escobas",
+  "hay velas y pilas",
+  "necesito linternas",
+  "leche de fórmula para bebé",
+  "algo para adulto mayor",
+  "personas con discapacidad",
+  "suspendieron las clases",
+  "hay dónde cargar el celular",
 ];
 
 const NO_SE_BUSCAN = [
@@ -59,6 +72,15 @@ const NO_SE_BUSCAN = [
   "dónde queda la notaría",
   "horario del banco",
   "resultados de la lotería",
+  // Adversariales: casi activan las palabras nuevas, y no deben.
+  "clases de inglés",
+  "quiero tomar clases de yoga",
+  "una novela de amor",
+  "pila de libros",
+  "la vela del barco",
+  "planta de interior",
+  "carga de trabajo",
+  "formula matemática",
 ];
 
 describe("preguntas que tienen que buscarse", () => {
@@ -94,5 +116,20 @@ describe("además producen un filtro útil, no solo pasan", () => {
 
   it("vacunación es atención médica", () => {
     expect(extractCategories("jornada de vacunación")).toContain("medical_assistance");
+  });
+
+  it("una remesa es un mercado", () => {
+    expect(extractCategories("donde dan remesa")).toContain("food");
+  });
+
+  it("un cambuche es alojamiento", () => {
+    expect(extractCategories("hay cambuches")).toContain("shelter");
+  });
+
+  it("bebés: la categoría existía sin una sola palabra que la activara", () => {
+    expect(extractCategories("leche de fórmula para bebé")).toContain("baby_supplies");
+    expect(extractCategories("necesito biberón")).toContain("baby_supplies");
+    // Y no se activa con el verbo beber.
+    expect(extractCategories("el perro bebe agua")).not.toContain("baby_supplies");
   });
 });

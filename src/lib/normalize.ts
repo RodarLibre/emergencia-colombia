@@ -399,6 +399,9 @@ const CATEGORY_KEYWORDS: ReadonlyArray<readonly [string, string]> = [
   ["olla comunitaria", "food"],
   ["desayun", "food"],
   ["cena", "food"],
+  // Como se dice en Colombia: una remesa o una ancheta es un mercado.
+  ["remesa", "food"],
+  ["ancheta", "food"],
   ["medicament", "medical_supplies"],
   ["insumo", "medical_supplies"],
   ["gasa", "medical_supplies"],
@@ -419,6 +422,8 @@ const CATEGORY_KEYWORDS: ReadonlyArray<readonly [string, string]> = [
   ["sin casa", "shelter"],
   ["sin techo", "shelter"],
   ["sin hogar", "shelter"],
+  ["cambuche", "shelter"],
+  ["toldo", "shelter"],
   ["transporte", "transport"],
   ["camion", "transport"],
   ["vehiculo", "transport"],
@@ -438,8 +443,15 @@ const CATEGORY_KEYWORDS: ReadonlyArray<readonly [string, string]> = [
   ["celular", "communications"],
   ["energia", "power"],
   ["luz", "power"],
-  ["planta", "power"],
-  ["carga", "power"],
+  // "planta" a secas casa con planta de interior, y "carga" con carga de
+  // trabajo. Lo que se busca es una planta eléctrica y dónde cargar el celular.
+  ["planta electrica", "power"],
+  ["cargar", "power"],
+  ["punto de carga", "power"],
+  // Sin luz, alumbrarse es el problema inmediato.
+  ["velas", "power"],
+  ["baterias", "power"],
+  ["linterna", "power"],
   ["ropa", "clothing"],
   ["cobija", "clothing"],
   ["frazada", "clothing"],
@@ -451,7 +463,23 @@ const CATEGORY_KEYWORDS: ReadonlyArray<readonly [string, string]> = [
   ["toalla", "hygiene"],
   ["banar", "hygiene"],
   ["ducha", "hygiene"],
+  // Limpiar después del sismo también es aseo.
+  ["escoba", "hygiene"],
+  ["trapero", "hygiene"],
+  ["balde", "hygiene"],
   ["voluntari", "volunteers"],
+  // La categoría baby_supplies existía en el vocabulario sin una sola palabra
+  // que la activara: era imposible llegar a ella.
+  // Nada de "bebe" ni "formula" sueltos: casan con el verbo beber y con
+  // "fórmula matemática". Se piden las formas que nadie usa por accidente.
+  ["bebes", "baby_supplies"],
+  ["para bebe", "baby_supplies"],
+  ["recien nacido", "baby_supplies"],
+  ["biberon", "baby_supplies"],
+  ["leche de formula", "baby_supplies"],
+  ["formula infantil", "baby_supplies"],
+  ["lactancia", "baby_supplies"],
+  ["leche en polvo", "baby_supplies"],
   ["mascota", "animal_support"],
   ["animal", "animal_support"],
   ["perro", "animal_support"],
@@ -517,6 +545,15 @@ const DOMAIN_TERMS = [
   "perdi mi casa",
   "perdi todo",
   "quede sin",
+  // Grupos por los que se pregunta sin nombrar un recurso.
+  "adulto mayor",
+  "tercera edad",
+  "discapacidad",
+  // La suspensión de clases es de lo más consultado tras un sismo, pero
+  // "clases" a secas casa con clases de inglés o de yoga.
+  "suspendieron",
+  "suspension de clases",
+  "hay clases",
   "magnitud",
   // Giving and receiving
   "ayuda",
