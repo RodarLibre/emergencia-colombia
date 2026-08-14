@@ -1,6 +1,8 @@
 import { relations } from "drizzle-orm";
 import {
+  bigint,
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -177,6 +179,26 @@ export const aiUsageCounters = pgTable(
  * normalized text. And it's versioned by prompt: if the vocabulary or the
  * rules change, old entries stop matching instead of returning stale filters.
  */
+/**
+ * Consumo diario de inferencia, en agregado.
+ *
+ * Solo totales por dia: ni el texto de las preguntas ni nada por consulta. Sin
+ * esto no se puede responder "cuanto llevamos gastado", que es justo lo que hay
+ * que saber cuando el presupuesto sale de los creditos de alguien.
+ *
+ * El costo se calcula al leer, no se guarda: los precios cambian y un numero
+ * viejo guardado en la base miente sin avisar.
+ */
+export const aiUsageDaily = pgTable("ai_usage_daily", {
+  /** Dia en America/Bogota, que es donde vive quien paga y quien pregunta. */
+  day: date("day").primaryKey(),
+  calls: integer("calls").notNull().default(0),
+  inputTokens: bigint("input_tokens", { mode: "number" }).notNull().default(0),
+  outputTokens: bigint("output_tokens", { mode: "number" }).notNull().default(0),
+  /** Llamadas que fallaron. No gastan tokens pero si dicen que algo anda mal. */
+  failures: integer("failures").notNull().default(0),
+});
+
 export const aiIntentCache = pgTable(
   "ai_intent_cache",
   {

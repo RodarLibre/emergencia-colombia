@@ -30,9 +30,19 @@ import {
  * so nothing here can invent an address.
  */
 
+/**
+ * Ejemplos repartidos por departamento, no todos del Valle: quien entra desde
+ * Risaralda o Quindío tiene que ver su ciudad acá para saber que lo cubrimos.
+ *
+ * Cada uno se eligió porque HOY devuelve resultados. Un ejemplo que no
+ * encuentra nada es peor que no ponerlo: enseña que el sitio no sirve.
+ */
 const SUGGESTIONS = [
+  "Albergues en Pereira",
   "¿Dónde puedo llevar agua en Palmira?",
-  "Albergues en Cali",
+  "¿Dónde puedo ayudar en Armenia?",
+  "Puntos de acopio en Manizales",
+  "Ayuda en Roldanillo",
   "¿Quién recibe insumos médicos?",
   "¿Hubo réplicas anoche?",
 ];
@@ -222,7 +232,7 @@ function SearchBox({
           name="pregunta"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Ej: dónde llevo agua en Palmira"
+          placeholder="Ej: dónde llevo agua en Pereira"
           maxLength={800}
           autoComplete="off"
           disabled={pending}

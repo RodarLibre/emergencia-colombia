@@ -1,7 +1,7 @@
-import { timingSafeEqual } from "node:crypto";
-
 import { ADAPTER_SLUGS, isAdapterSlug, runAdapter } from "@/ingest/registry";
 import { ParserError } from "@/ingest/types";
+
+import { authorized } from "./auth";
 import { QuarantineError } from "@/ingest/upsert";
 
 export const dynamic = "force-dynamic";
@@ -21,18 +21,6 @@ export const maxDuration = 60;
  * Without `INGEST_SECRET` configured, the route responds 503: an
  * unauthenticated ingest is never exposed, not even by accident.
  */
-
-function authorized(request: Request): boolean {
-  const expected = process.env.INGEST_SECRET;
-  if (!expected) return false;
-
-  const header = request.headers.get("authorization") ?? "";
-  const provided = header.startsWith("Bearer ") ? header.slice(7) : "";
-  if (provided.length !== expected.length) return false;
-
-  // Constant-time comparison: avoids leaking the secret through latency.
-  return timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
-}
 
 export async function POST(request: Request) {
   if (!process.env.INGEST_SECRET) {

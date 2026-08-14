@@ -37,6 +37,21 @@ function positiveInt(raw: string | undefined, name: string, fallback: number): n
 }
 
 /**
+ * Lee un numero positivo del entorno. Igual que `positiveInt` pero admite
+ * decimales, para precios.
+ */
+export function positiveNumberFromEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    console.warn(`[config] ${name}="${raw}" no es un numero valido; uso ${fallback}`);
+    return fallback;
+  }
+  return parsed;
+}
+
+/**
  * Inference quota. Limits the MODEL only — deterministic search is never
  * limited, so running out costs interpretation, never the ability to search.
  */

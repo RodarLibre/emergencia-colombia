@@ -12,6 +12,7 @@ import {
 } from "./normalize";
 import { getCachedIntent, putCachedIntent } from "./intent-cache";
 import { detectOutOfScope, type OutOfScopeReason } from "./scope";
+import { recordUsage } from "./usage";
 import { CATEGORIES, OPERATING_MUNICIPALITIES, RECORD_TYPES_V1 } from "./vocab";
 
 /**
@@ -210,7 +211,7 @@ export async function resolveQuestion(
   }
 
   try {
-    const { object } = await generateObject({
+    const { object, usage } = await generateObject({
       model: modelFor("intent"),
       schema: SearchIntentSchema,
       system: SYSTEM_PROMPT,
@@ -245,6 +246,12 @@ export async function resolveQuestion(
     // real municipality 40 km away. Resolving names rather than codes stops the
     // model inventing an identifier, but not inventing a name that happens to
     // exist. Reading the question first does.
+    // Se registra el gasto, no la pregunta: solo totales del dia.
+    void recordUsage({
+      inputTokens: usage?.inputTokens,
+      outputTokens: usage?.outputTokens,
+    });
+
     const municipality = findMunicipalityInText(trimmed) ?? resolveMunicipality(object.municipio);
 
     const fromModel: ResolvedQuery = {
@@ -275,6 +282,11 @@ export async function resolveQuestion(
     // provider failure must degrade to that quality, not below it. Without
     // this, a transient timeout silently drops the municipality filter even
     // though it's sitting right there in the text.
+    //
+    // Se cuenta el fallo, no su causa: es lo que permite notar que el
+    // proveedor anda mal sin guardar nada de nadie.
+    void recordUsage({ failed: true });
+
     const municipality = findMunicipalityInText(trimmed);
     return {
       ...fallbackQuery(trimmed),
