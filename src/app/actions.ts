@@ -87,7 +87,10 @@ export async function ask(question: string): Promise<AskResult> {
     question: trimmed,
     query,
     search,
-    offTopic: !hasDomainSignal(trimmed),
+    // Fuera de tema es no haberla entendido por NINGÚN camino. Que el
+    // vocabulario no la reconozca ya no alcanza: si el modelo dedujo un tipo
+    // de registro, hay algo que buscar. Ver `guessed` en `intent.ts`.
+    offTopic: !hasDomainSignal(trimmed) && query.types.length === 0,
     busy,
   });
 
