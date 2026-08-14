@@ -108,3 +108,56 @@ describe("municipio calculado desde las coordenadas", () => {
     expect(r!.admin2Code).toBeNull();
   });
 });
+
+describe("dotación de voluntarios", () => {
+  function punto(extra: Record<string, unknown>) {
+    return JSON.stringify({
+      puntos: [
+        {
+          id: "v1",
+          tipo: "rescate",
+          estado: "urgente",
+          nombre: "Sitio de remoción",
+          direccion: "Calle 5 #1-20",
+          lat: 3.4516,
+          lng: -76.532,
+          necesidades: [],
+          confirmado: 1786724800941,
+          ...extra,
+        },
+      ],
+    });
+  }
+
+  it("donde faltan manos, marca voluntarios y lo dice", () => {
+    process.env.MAPA_EMERGENCIA_INCLUIR_RESCATE = "on";
+    const [r] = parseFeed(
+      punto({ saturacion: "faltan", voluntarios_hay: 6, voluntarios_faltan: 43 }),
+    );
+    expect(r!.categoryCodes).toContain("volunteers");
+    expect(r!.status).toBe("active");
+    expect(r!.description).toContain("Faltan 43 voluntarios");
+    expect(r!.description).toContain("6 en el sitio");
+  });
+
+  it("donde ya sobra gente, no aparece como sitio para ir a ayudar", () => {
+    // Mandar a alguien a un sitio saturado le gasta el viaje. Es el dato que
+    // ninguna otra fuente tiene y por eso vale codificarlo.
+    process.env.MAPA_EMERGENCIA_INCLUIR_RESCATE = "on";
+    const [r] = parseFeed(
+      punto({ saturacion: "exceso", voluntarios_hay: 20, voluntarios_faltan: 0 }),
+    );
+    expect(r!.categoryCodes).not.toContain("volunteers");
+    expect(r!.status).toBe("fulfilled");
+    expect(r!.description).toContain("Ya hay suficientes");
+  });
+
+  it("sin dato de dotación, cae al estado que declara la fuente", () => {
+    process.env.MAPA_EMERGENCIA_INCLUIR_RESCATE = "on";
+    const [r] = parseFeed(
+      punto({ saturacion: "sin_dato", voluntarios_hay: 0, voluntarios_faltan: 0 }),
+    );
+    expect(r!.status).toBe("active");
+    expect(r!.categoryCodes).not.toContain("volunteers");
+  });
+});

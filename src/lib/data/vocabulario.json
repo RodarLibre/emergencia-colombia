@@ -130,7 +130,18 @@
       "toldo"
     ],
     "transport": ["camion", "transporte", "vehiculo"],
-    "volunteers": ["voluntari"],
+    "volunteers": [
+      "brigadista",
+      "donde ayudar",
+      "hacen falta manos",
+      "ir a ayudar",
+      "mano de obra",
+      "poner el cuerpo",
+      "quitar escombros",
+      "remover escombros",
+      "rescatista",
+      "voluntari"
+    ],
     "water": ["agua", "hidratacion"]
   }
 }

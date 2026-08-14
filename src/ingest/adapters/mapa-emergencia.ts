@@ -129,6 +129,19 @@ function categorias(necesidades: readonly string[]): Category[] {
   return [...found];
 }
 
+/**
+ * Cuánta gente hay y cuánta falta, que es el dato que ninguna otra fuente
+ * tiene. Se traduce a estado para que la respuesta distinga entre "acá hacen
+ * falta manos" y "acá ya sobran": mandar a alguien a un sitio saturado le
+ * gasta el viaje.
+ */
+function estadoPorDotacion(saturacion: string, faltan: number): Status | null {
+  if (saturacion === "cerrado") return "closed";
+  if (saturacion === "exceso") return "fulfilled";
+  if (saturacion === "faltan" || faltan > 0) return "active";
+  return null;
+}
+
 type Punto = {
   id?: unknown;
   enlace?: unknown;
@@ -141,6 +154,9 @@ type Punto = {
   lng?: unknown;
   necesidades?: unknown;
   confirmado?: unknown;
+  saturacion?: unknown;
+  voluntarios_hay?: unknown;
+  voluntarios_faltan?: unknown;
 };
 
 function texto(v: unknown, max = 300): string | null {
@@ -197,9 +213,28 @@ export function parseFeed(body: string): ParsedRecord[] {
     const confirmado = ms && ms > 1_000_000_000_000 && ms < 4_000_000_000_000 ? new Date(ms) : null;
     if (!confirmado) continue;
 
+    const saturacion = typeof p.saturacion === "string" ? p.saturacion : "";
+    const hay = typeof p.voluntarios_hay === "number" ? p.voluntarios_hay : 0;
+    const faltan = typeof p.voluntarios_faltan === "number" ? p.voluntarios_faltan : 0;
+
     const title = nombre ?? direccion!;
-    const description =
-      necesidades.length > 0 ? `Necesita: ${necesidades.slice(0, 12).join(", ")}` : null;
+
+    const partes: string[] = [];
+    if (faltan > 0) {
+      partes.push(`Faltan ${faltan} ${faltan === 1 ? "voluntario" : "voluntarios"}`);
+    } else if (saturacion === "exceso") {
+      partes.push("Ya hay suficientes voluntarios");
+    }
+    if (hay > 0) partes.push(`${hay} en el sitio`);
+    if (necesidades.length > 0) partes.push(`Necesita: ${necesidades.slice(0, 12).join(", ")}`);
+    const description = partes.length > 0 ? partes.join(". ") : null;
+
+    const cats = categorias(necesidades);
+    // Solo donde de verdad hacen falta manos. Sin esto, "donde puedo ayudar
+    // con mano de obra" devolvería también los sitios que ya están cubiertos.
+    if (faltan > 0 || saturacion === "faltan") {
+      if (!cats.includes("volunteers")) cats.push("volunteers");
+    }
 
     const record: ParsedRecord = {
       externalId: id,
@@ -208,10 +243,15 @@ export function parseFeed(body: string): ParsedRecord[] {
           ? p.enlace
           : `${MAPA_EMERGENCIA_SOURCE.baseUrl}/#p=${id}`,
       recordType,
-      status: ESTADOS[typeof p.estado === "string" ? p.estado : ""] ?? "unknown",
+      // La dotación manda sobre el estado declarado: un sitio "urgente" con
+      // exceso de voluntarios no necesita más gente.
+      status:
+        estadoPorDotacion(saturacion, faltan) ??
+        ESTADOS[typeof p.estado === "string" ? p.estado : ""] ??
+        "unknown",
       title,
       description,
-      categoryCodes: categorias(necesidades),
+      categoryCodes: cats,
       locality: texto(p.barrio, 120),
       displayAddress: direccion,
       openingHours: null,
