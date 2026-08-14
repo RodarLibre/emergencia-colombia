@@ -32,6 +32,12 @@ export type Answer = {
   /** The most actionable result, if any — computed for callers that want it, not narrated in `text`. */
   highlight: SearchResult | null;
   results: SearchResult[];
+  /**
+   * Mismos lugares vistos por otras fuentes, traidos aunque no cumplan los
+   * filtros. No se muestran como fichas: solo alimentan el aviso de "otra
+   * fuente podria estar hablando del mismo lugar".
+   */
+  companions: SearchResult[];
   /** Warnings that must survive into the bubble. */
   notes: AnswerNote[];
 };
@@ -137,6 +143,7 @@ export function composeAnswer(input: ComposeInput): Answer {
         "comunicados y sismos publicados por otros sitios.",
       highlight: null,
       results: [],
+      companions: [],
       notes,
     };
   }
@@ -147,6 +154,7 @@ export function composeAnswer(input: ComposeInput): Answer {
       text: `Nadie publica ${what}${describeWhere(query)}.`,
       highlight: null,
       results: [],
+      companions: [],
       notes,
     };
   }
@@ -154,5 +162,11 @@ export function composeAnswer(input: ComposeInput): Answer {
   const sorted = [...results].sort((a, b) => actionability(b) - actionability(a));
   const highlight = sorted[0] ?? null;
 
-  return { text: headline(query, results), highlight, results, notes };
+  return {
+    text: headline(query, results),
+    highlight,
+    results,
+    companions: search.companions,
+    notes,
+  };
 }

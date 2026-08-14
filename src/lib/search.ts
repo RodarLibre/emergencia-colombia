@@ -252,38 +252,127 @@ export async function searchRecords(filters: SearchFilters): Promise<SearchResul
   const rows = (await db.execute(query)) as unknown as Row[];
   const now = new Date();
 
-  return rows.map((r) => {
-    const observedAt = new Date(r.observed_at);
-    const sourceUpdatedAt = r.source_updated_at ? new Date(r.source_updated_at) : null;
-    const recordType = r.record_type as RecordTypeV1;
-    return {
-      observationId: r.id,
-      sourceRecordId: r.source_record_id,
-      recordType,
-      status: r.status as Status,
-      title: r.title,
-      description: r.description,
-      categoryCodes: (r.category_codes ?? []) as Category[],
-      admin2Name: r.admin2_name,
-      locality: r.locality,
-      displayAddress: r.display_address,
-      openingHours: r.opening_hours,
-      locationPrecision: r.location_precision as LocationPrecision,
-      verificationLevel: r.verification_level as VerificationLevel,
-      sourceUpdatedAt,
-      observedAt,
-      sourceName: r.source_name,
-      sourceSlug: r.source_slug,
-      sourceTrustLabel: r.trust_label,
-      canonicalUrl: r.canonical_url,
-      municipalityUnspecified: Boolean(r.municipality_unspecified),
-      noLongerListed: Boolean(r.no_longer_listed),
-      lastSeenAt: new Date(r.last_seen_at),
-      // Freshness from what the source says, if it says it; otherwise from
-      // when this system observed it.
-      freshness: computeFreshness(recordType, sourceUpdatedAt ?? observedAt, now),
-    };
-  });
+  return rows.map((r) => mapRow(r, now));
+}
+
+/** Una fila cruda a un resultado. Compartido por la busqueda y los gemelos. */
+function mapRow(r: Row, now: Date): SearchResult {
+  const observedAt = new Date(r.observed_at);
+  const sourceUpdatedAt = r.source_updated_at ? new Date(r.source_updated_at) : null;
+  const recordType = r.record_type as RecordTypeV1;
+  return {
+    observationId: r.id,
+    sourceRecordId: r.source_record_id,
+    recordType,
+    status: r.status as Status,
+    title: r.title,
+    description: r.description,
+    categoryCodes: (r.category_codes ?? []) as Category[],
+    admin2Name: r.admin2_name,
+    locality: r.locality,
+    displayAddress: r.display_address,
+    openingHours: r.opening_hours,
+    locationPrecision: r.location_precision as LocationPrecision,
+    verificationLevel: r.verification_level as VerificationLevel,
+    sourceUpdatedAt,
+    observedAt,
+    sourceName: r.source_name,
+    sourceSlug: r.source_slug,
+    sourceTrustLabel: r.trust_label,
+    canonicalUrl: r.canonical_url,
+    municipalityUnspecified: Boolean(r.municipality_unspecified),
+    noLongerListed: Boolean(r.no_longer_listed),
+    lastSeenAt: new Date(r.last_seen_at),
+    // Freshness from what the source says, if it says it; otherwise from
+    // when this system observed it.
+    freshness: computeFreshness(recordType, sourceUpdatedAt ?? observedAt, now),
+  };
+}
+
+/**
+ * Direccion reducida a lo que la identifica, con las mismas reglas del lado
+ * SQL de `findCompanions`. `translate` es inmutable, a diferencia de
+ * `unaccent`, asi que no arrastra el problema que este proyecto ya evita.
+ */
+function addressKey(direccion: string): string | null {
+  const s = direccion
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+  return s.length >= 8 ? s : null;
+}
+
+/**
+ * Registros de OTRAS fuentes en la misma direccion que alguno de los
+ * resultados, aunque no cumplan los filtros de la busqueda.
+ *
+ * Existe porque el aviso de "otra fuente podria estar hablando del mismo
+ * lugar" se calcula sobre lo que ya esta en pantalla, y el filtro por tipo
+ * dejaba fuera al gemelo: de seis direcciones repetidas en el Valle, cinco
+ * estaban catalogadas como acopio en una fuente y como punto de servicio en
+ * la otra, asi que nunca coincidian en la misma lista.
+ *
+ * No son resultados: no se cuentan ni se muestran como fichas. Solo permiten
+ * decir "esto tambien lo reporta X, y lo reporta distinto".
+ */
+export async function findCompanions(results: readonly SearchResult[]): Promise<SearchResult[]> {
+  const claves = new Map<string, true>();
+  for (const r of results) {
+    if (!r.displayAddress) continue;
+    const k = addressKey(r.displayAddress);
+    if (k) claves.set(k, true);
+  }
+  if (claves.size === 0) return [];
+
+  const yaEstan = results.map((r) => r.sourceRecordId);
+  const lista = sql.join(
+    [...claves.keys()].map((k) => sql`${k}`),
+    sql`, `,
+  );
+  const excluidos = sql.join(
+    yaEstan.map((id) => sql`${id}`),
+    sql`, `,
+  );
+
+  const query = sql`
+    WITH latest AS (
+      SELECT DISTINCT ON (o.source_record_id)
+        o.id, o.source_record_id, o.record_type, o.status, o.title, o.description,
+        o.category_codes, o.admin2_code, o.admin2_name, o.locality, o.display_address,
+        o.opening_hours, o.location_precision, o.verification_level, o.source_updated_at,
+        o.observed_at, o.search_text,
+        sr.canonical_url, sr.last_seen_at,
+        MAX(sr.last_seen_at) OVER (PARTITION BY sr.source_id) AS source_last_read,
+        s.name AS source_name, s.slug AS source_slug, s.trust_label, s.coverage_admin1_code
+      FROM observations o
+      JOIN source_records sr ON sr.id = o.source_record_id
+      JOIN sources s ON s.id = sr.source_id
+      WHERE sr.withdrawn_at IS NULL
+        AND sr.hidden_at IS NULL
+        AND s.enabled = true
+        AND o.display_address IS NOT NULL
+        AND ${excludeDemoSources()}
+      ORDER BY o.source_record_id, o.observed_at DESC
+    )
+    SELECT
+      l.*,
+      0 AS rank,
+      (l.admin2_code IS NULL) AS municipality_unspecified,
+      (l.last_seen_at < l.source_last_read - INTERVAL '5 minutes') AS no_longer_listed
+    FROM latest l
+    WHERE l.status <> 'withdrawn'
+      AND l.source_record_id NOT IN (${excluidos})
+      AND regexp_replace(
+            lower(translate(l.display_address, 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunAEIOUUN')),
+            '[^a-z0-9]', '', 'g'
+          ) IN (${lista})
+    LIMIT 40
+  `;
+
+  const rows = (await db.execute(query)) as unknown as Row[];
+  const now = new Date();
+  return rows.map((r) => mapRow(r, now));
 }
 
 export type DroppedFilter = "categories" | "types" | "text";
@@ -292,6 +381,12 @@ export type BroadenedSearch = {
   results: SearchResult[];
   /** Which filters had to be dropped to find anything. Empty when none were. */
   dropped: DroppedFilter[];
+  /**
+   * Registros de otras fuentes en la misma direccion que algun resultado, aun
+   * si no cumplen los filtros. No son resultados: no se cuentan ni se muestran
+   * como fichas, solo permiten decir "esto tambien lo reporta X".
+   */
+  companions: SearchResult[];
 };
 
 /**
@@ -309,9 +404,16 @@ export type BroadenedSearch = {
  * What was dropped is returned so the interface can say so instead of quietly
  * answering a different question.
  */
+async function withCompanions(
+  results: SearchResult[],
+  dropped: DroppedFilter[],
+): Promise<BroadenedSearch> {
+  return { results, dropped, companions: await findCompanions(results) };
+}
+
 export async function searchWithFallback(filters: SearchFilters): Promise<BroadenedSearch> {
   const exact = await searchRecords(filters);
-  if (exact.length > 0) return { results: exact, dropped: [] };
+  if (exact.length > 0) return withCompanions(exact, []);
 
   /** Anything left to narrow by. No filters would mean "the whole catalog". */
   const stillNarrows = (f: SearchFilters) =>
@@ -331,7 +433,7 @@ export async function searchWithFallback(filters: SearchFilters): Promise<Broade
     const next: SearchFilters = { ...filters, q: null };
     if (stillNarrows(next)) {
       const widened = await searchRecords(next);
-      if (widened.length > 0) return { results: widened, dropped: ["text"] };
+      if (widened.length > 0) return withCompanions(widened, ["text"]);
     }
   }
 
@@ -343,7 +445,7 @@ export async function searchWithFallback(filters: SearchFilters): Promise<Broade
     if (stillNarrows(next)) {
       const widened = await searchRecords(next);
       if (widened.length > 0) {
-        return { results: widened, dropped: filters.q ? ["text", "categories"] : ["categories"] };
+        return withCompanions(widened, filters.q ? ["text", "categories"] : ["categories"]);
       }
     }
   }
@@ -359,12 +461,12 @@ export async function searchWithFallback(filters: SearchFilters): Promise<Broade
         const dropped: DroppedFilter[] = ["types"];
         if (filters.categories?.length) dropped.unshift("categories");
         if (filters.q) dropped.unshift("text");
-        return { results: widened, dropped };
+        return withCompanions(widened, dropped);
       }
     }
   }
 
-  return { results: [], dropped: [] };
+  return { results: [], dropped: [], companions: [] };
 }
 
 export type CatalogStats = {

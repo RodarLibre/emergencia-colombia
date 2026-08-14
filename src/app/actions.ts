@@ -42,6 +42,7 @@ export async function ask(question: string): Promise<AskResult> {
         text: "Escribí tu pregunta y busco en todas las fuentes conectadas.",
         highlight: null,
         results: [],
+        companions: [],
         notes: [],
       },
       filters: { types: [], categories: [], municipality: null, text: null },

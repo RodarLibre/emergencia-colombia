@@ -559,7 +559,9 @@ function AnswerView({
   filters: AppliedFilters;
   onPick: (question: string) => void;
 }) {
-  const sameplace = findPossibleSameplace(answer.results);
+  // Los gemelos entran al calculo aunque no se dibujen: son justamente los
+  // que el filtro por tipo dejaba fuera de la lista.
+  const sameplace = findPossibleSameplace([...answer.results, ...answer.companions]);
   const matchedCategories = new Set(filters.categories as Category[]);
 
   const isOffTopic = answer.notes.includes("off_topic");

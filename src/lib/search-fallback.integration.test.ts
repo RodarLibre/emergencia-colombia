@@ -89,3 +89,46 @@ describe("searchWithFallback", () => {
     expect(results).toEqual([]);
   });
 });
+
+describe("gemelos en la misma direccion", () => {
+  it("los trae aunque el filtro por tipo los deje fuera", async () => {
+    // Seis direcciones del Valle estaban en dos fuentes, cinco de ellas con
+    // tipos distintos: el gemelo nunca caia en la misma lista y el aviso de
+    // "mismo lugar" no se podia calcular.
+    const [dup] = (await db.execute(sql`
+      WITH ult AS (
+        SELECT sr.id, s.slug, o.display_address, o.record_type
+        FROM source_records sr
+        JOIN sources s ON s.id = sr.source_id
+        JOIN LATERAL (
+          SELECT * FROM observations o2 WHERE o2.source_record_id = sr.id
+          ORDER BY o2.observed_at DESC LIMIT 1
+        ) o ON true
+        WHERE s.enabled AND o.display_address IS NOT NULL
+      )
+      SELECT a.display_address, a.record_type AS tipo_a, b.record_type AS tipo_b
+      FROM ult a JOIN ult b
+        ON a.display_address = b.display_address AND a.slug < b.slug
+      LIMIT 1
+    `)) as unknown as { display_address: string; tipo_a: string; tipo_b: string }[];
+
+    if (!dup) return; // La base local puede no tener duplicados entre fuentes.
+
+    const { results, companions } = await searchWithFallback({
+      q: dup.display_address,
+      types: [dup.tipo_a],
+      limit: 20,
+    });
+
+    expect(results.length).toBeGreaterThan(0);
+    if (dup.tipo_a !== dup.tipo_b) {
+      // El gemelo es de otro tipo: no puede estar en `results`, pero si en
+      // `companions`.
+      expect(results.every((r) => r.recordType === dup.tipo_a)).toBe(true);
+      expect(companions.some((c) => c.recordType === dup.tipo_b)).toBe(true);
+    }
+    // Nunca se repite un registro entre las dos listas.
+    const ids = new Set(results.map((r) => r.sourceRecordId));
+    expect(companions.every((c) => !ids.has(c.sourceRecordId))).toBe(true);
+  });
+});

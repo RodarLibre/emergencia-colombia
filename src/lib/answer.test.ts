@@ -29,7 +29,7 @@ function query(overrides: Partial<ResolvedQuery> = {}): ResolvedQuery {
   };
 }
 
-const sinResultados: BroadenedSearch = { results: [], dropped: [] };
+const sinResultados: BroadenedSearch = { results: [], dropped: [], companions: [] };
 
 describe("cuando solo el modelo entendió la pregunta", () => {
   it("lo dice", () => {
