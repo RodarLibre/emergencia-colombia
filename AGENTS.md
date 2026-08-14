@@ -103,6 +103,6 @@ pnpm typecheck
 pnpm build
 docker compose up -d db
 pnpm db:push && pnpm db:seed          # seed data is fake and refuses production
-pnpm ingest <slug> [--fixture]        # cali-ayuda | donde-ayudo-valle
+pnpm ingest <slug> [--fixture]        # cali-ayuda | donde-ayudo-valle | mapa-emergencia | sgc-sismos
 node scripts/fetch-municipios.mjs     # regenerate DANE municipalities
 ```

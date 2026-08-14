@@ -12,6 +12,7 @@ import { pruneRateLimitCounters } from "@/lib/ratelimit";
 
 import { ParserError, type ParsedRecord } from "./types";
 import { assertNoCountCollapse, ensureSource, upsertRecords, type IngestResult } from "./upsert";
+import { MAPA_EMERGENCIA_SOURCE, fetchMapaEmergencia, parseFeed } from "./adapters/mapa-emergencia";
 
 /**
  * Adapter registry, shared by the CLI and the cron route.
@@ -27,6 +28,16 @@ export const ADAPTERS = {
     fetch: fetchReports,
     parse: parseReports,
     // Community reports: the source doesn't claim to have verified them.
+    verificationLevel: "community_unverified",
+  },
+  "mapa-emergencia": {
+    config: MAPA_EMERGENCIA_SOURCE,
+    fixture: "fixtures/mapa-emergencia-publico.json",
+    fetch: fetchMapaEmergencia,
+    parse: parseFeed,
+    // Feed acordado con la fuente, pero los puntos los reporta la comunidad y
+    // el feed no trae sello de entidad en ninguno (`verificado_por` vacio en
+    // los 790). La atribucion es a la fuente, no una verificacion.
     verificationLevel: "community_unverified",
   },
   "donde-ayudo-valle": {
