@@ -33,6 +33,33 @@ describe("searchWithFallback", () => {
     expect(dropped).toEqual([]);
   });
 
+  it("drops the leftover text before anything else", async () => {
+    // "no tengo dónde dormir": the reader understood the category, but the
+    // words left over matched no record and the answer was "nadie publica
+    // alojamiento" while a shelter sat in the catalog. The person with the
+    // least options got the emptiest answer.
+    const { results, dropped } = await searchWithFallback({
+      q: "no tengo donde dormir zzzz",
+      categories: ["shelter"],
+    });
+    expect(results.length).toBeGreaterThan(0);
+    expect(dropped).toEqual(["text"]);
+  });
+
+  it("keeps the municipality while dropping the text", async () => {
+    const { results, dropped } = await searchWithFallback({
+      q: "palabras que no existen en ningun registro zzzz",
+      admin2Code: municipality,
+    });
+    expect(results.length).toBeGreaterThan(0);
+    expect(dropped).toEqual(["text"]);
+    // Un registro sin municipio se incluye a propósito cuando su fuente cubre
+    // el departamento; lo que no puede aparecer es otro municipio.
+    expect(results.every((r) => r.admin2Code === municipality || r.municipalityUnspecified)).toBe(
+      true,
+    );
+  });
+
   it("drops an impossible category before giving up", async () => {
     // "donde recibo panales" inferred `hygiene`; the diapers are at collection
     // points that carry other categories.

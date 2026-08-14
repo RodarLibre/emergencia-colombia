@@ -260,10 +260,12 @@ export async function searchRecords(filters: SearchFilters): Promise<SearchResul
   });
 }
 
+export type DroppedFilter = "categories" | "types" | "text";
+
 export type BroadenedSearch = {
   results: SearchResult[];
   /** Which filters had to be dropped to find anything. Empty when none were. */
-  dropped: ("categories" | "types" | "text")[];
+  dropped: DroppedFilter[];
 };
 
 /**
@@ -285,29 +287,55 @@ export async function searchWithFallback(filters: SearchFilters): Promise<Broade
   const exact = await searchRecords(filters);
   if (exact.length > 0) return { results: exact, dropped: [] };
 
-  if (filters.categories?.length) {
-    const widened = await searchRecords({ ...filters, categories: [] });
-    if (widened.length > 0) return { results: widened, dropped: ["categories"] };
-  }
+  /** Anything left to narrow by. No filters would mean "the whole catalog". */
+  const stillNarrows = (f: SearchFilters) =>
+    Boolean(f.q) ||
+    (f.types?.length ?? 0) > 0 ||
+    (f.categories?.length ?? 0) > 0 ||
+    Boolean(f.admin2Code);
 
-  if (filters.types?.length) {
-    const widened = await searchRecords({ ...filters, categories: [], types: [] });
-    if (widened.length > 0) {
-      return {
-        results: widened,
-        dropped: filters.categories?.length ? ["categories", "types"] : ["types"],
-      };
+  // The free text goes FIRST, because it is the least trustworthy filter: it
+  // is whatever words were left over after the municipality, the type and the
+  // categories were taken out, and no record has to contain them. Asked "no
+  // tengo dónde dormir" the reader correctly understood the category
+  // "alojamiento", but the leftover text matched nothing and the answer was
+  // "nadie publica alojamiento" while a shelter sat in the catalog. The person
+  // with the least options got the emptiest answer.
+  if (filters.q) {
+    const next: SearchFilters = { ...filters, q: null };
+    if (stillNarrows(next)) {
+      const widened = await searchRecords(next);
+      if (widened.length > 0) return { results: widened, dropped: ["text"] };
     }
   }
 
-  // Last resort: drop the free text but keep the place and the kind of place.
-  // The model's leftover keywords can be narrower than anything in the
-  // catalog — "donde puedo dejar cosas para los damnificados" produced "dejar
-  // cosas damnificados", which no record contains, so a correct
-  // `collection_point` filter still returned nothing.
-  if (filters.q && ((filters.types?.length ?? 0) > 0 || filters.admin2Code)) {
-    const widened = await searchRecords({ ...filters, q: null, categories: [] });
-    if (widened.length > 0) return { results: widened, dropped: ["text"] };
+  // Then the categories, which refine a search rather than define it. With no
+  // "albergue con agua" it is better to offer albergues than to offer anything
+  // at all that has water.
+  if (filters.categories?.length) {
+    const next: SearchFilters = { ...filters, q: null, categories: [] };
+    if (stillNarrows(next)) {
+      const widened = await searchRecords(next);
+      if (widened.length > 0) {
+        return { results: widened, dropped: filters.q ? ["text", "categories"] : ["categories"] };
+      }
+    }
+  }
+
+  // The record type last: it is the closest thing to what was actually asked
+  // for. The municipality is never dropped — someone in Palmira is not helped
+  // by a collection point in Cali.
+  if (filters.types?.length) {
+    const next: SearchFilters = { ...filters, q: null, categories: [], types: [] };
+    if (stillNarrows(next)) {
+      const widened = await searchRecords(next);
+      if (widened.length > 0) {
+        const dropped: DroppedFilter[] = ["types"];
+        if (filters.categories?.length) dropped.unshift("categories");
+        if (filters.q) dropped.unshift("text");
+        return { results: widened, dropped };
+      }
+    }
   }
 
   return { results: [], dropped: [] };
