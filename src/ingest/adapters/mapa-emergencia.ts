@@ -50,7 +50,7 @@ export const MAPA_EMERGENCIA_SOURCE = {
   // y los de fuera del area cubierta quedan sin municipio a proposito.
   coverageAdmin1Code: "76",
   contactNote:
-    "Feed publico acordado con la fuente el 2026-08-14. Condiciones: mostrar siempre la hora de confirmacion, enlazar a la ficha para contacto, y atribuir con enlace al mapa.",
+    "Feed publico acordado con la fuente el 2026-08-14. Condiciones: mostrar siempre la hora de confirmacion, enlazar a la ficha para contacto, y atribuir con enlace al mapa. El contacto del acuerdo no se guarda en el repositorio.",
 } as const;
 
 const FEED_URL = `${MAPA_EMERGENCIA_SOURCE.baseUrl}/api/publico`;

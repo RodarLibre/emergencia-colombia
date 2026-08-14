@@ -17,3 +17,9 @@ drizzle/meta/
 # Agent worktrees: full copies of this repo inside it. They must never be
 # committed, shipped to the Docker build context, or formatted.
 .claude/worktrees/
+
+# Correspondencia, propuestas y cualquier cosa con nombres o correos de
+# terceros. Se trabajan en local; el repositorio es publico.
+docs/OUTREACH.md
+docs/PROPUESTA-*.md
+docs/privado/
