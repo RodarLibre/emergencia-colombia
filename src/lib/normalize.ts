@@ -5,6 +5,8 @@ import {
   type Municipality,
 } from "./vocab";
 
+import vocabulario from "./data/vocabulario.json";
+
 /** Unicode range for combining diacritical marks (accents, diaeresis, etc.). */
 const COMBINING_MARKS = /[̀-ͯ]/g;
 
@@ -384,116 +386,9 @@ export function findMunicipalityInText(text: string | null | undefined): Municip
  * a lookup table. The model is left with what only it can do: understanding
  * intent and place.
  */
-const CATEGORY_KEYWORDS: ReadonlyArray<readonly [string, string]> = [
-  ["agua", "water"],
-  ["hidratacion", "water"],
-  ["comida", "food"],
-  ["aliment", "food"],
-  ["mercado", "food"],
-  ["merienda", "food"],
-  ["almuerzo", "food"],
-  // Comida preparada, no mercados: un comedor y una olla comunitaria son la
-  // forma en que la gente pregunta por almorzar hoy, no por que le entreguen
-  // un mercado para cocinar.
-  ["comedor", "food"],
-  ["olla comunitaria", "food"],
-  ["desayun", "food"],
-  ["cena", "food"],
-  // Como se dice en Colombia: una remesa o una ancheta es un mercado.
-  ["remesa", "food"],
-  ["ancheta", "food"],
-  ["medicament", "medical_supplies"],
-  ["insumo", "medical_supplies"],
-  ["gasa", "medical_supplies"],
-  ["jeringa", "medical_supplies"],
-  ["curacion", "medical_supplies"],
-  ["medic", "medical_assistance"],
-  ["enfermer", "medical_assistance"],
-  ["vacuna", "medical_assistance"],
-  ["jornada de salud", "medical_assistance"],
-  ["herid", "medical_assistance"],
-  ["albergue", "shelter"],
-  ["dormir", "shelter"],
-  ["refugio", "shelter"],
-  ["alojamiento", "shelter"],
-  ["carpa", "shelter"],
-  ["colchon", "shelter"],
-  // Quien lo perdió todo no escribe "albergue": escribe lo que le pasó.
-  ["sin casa", "shelter"],
-  ["sin techo", "shelter"],
-  ["sin hogar", "shelter"],
-  ["cambuche", "shelter"],
-  ["toldo", "shelter"],
-  ["transporte", "transport"],
-  ["camion", "transport"],
-  ["vehiculo", "transport"],
-  ["rescate", "rescue_equipment"],
-  ["casco", "rescue_equipment"],
-  ["camilla", "rescue_equipment"],
-  ["herramienta", "rescue_equipment"],
-  ["pala", "rescue_equipment"],
-  ["escombro", "rescue_equipment"],
-  ["zinc", "construction_materials"],
-  ["material", "construction_materials"],
-  ["cemento", "construction_materials"],
-  ["teja", "construction_materials"],
-  ["senal", "communications"],
-  ["internet", "communications"],
-  ["wifi", "communications"],
-  ["celular", "communications"],
-  ["energia", "power"],
-  ["luz", "power"],
-  // "planta" a secas casa con planta de interior, y "carga" con carga de
-  // trabajo. Lo que se busca es una planta eléctrica y dónde cargar el celular.
-  ["planta electrica", "power"],
-  ["cargar", "power"],
-  ["punto de carga", "power"],
-  // Sin luz, alumbrarse es el problema inmediato.
-  ["velas", "power"],
-  ["baterias", "power"],
-  ["linterna", "power"],
-  ["ropa", "clothing"],
-  ["cobija", "clothing"],
-  ["frazada", "clothing"],
-  ["zapato", "clothing"],
-  ["aseo", "hygiene"],
-  ["higiene", "hygiene"],
-  ["jabon", "hygiene"],
-  ["panal", "hygiene"],
-  ["toalla", "hygiene"],
-  ["banar", "hygiene"],
-  ["ducha", "hygiene"],
-  // Limpiar después del sismo también es aseo.
-  ["escoba", "hygiene"],
-  ["trapero", "hygiene"],
-  ["balde", "hygiene"],
-  ["voluntari", "volunteers"],
-  // La categoría baby_supplies existía en el vocabulario sin una sola palabra
-  // que la activara: era imposible llegar a ella.
-  // Nada de "bebe" ni "formula" sueltos: casan con el verbo beber y con
-  // "fórmula matemática". Se piden las formas que nadie usa por accidente.
-  ["bebes", "baby_supplies"],
-  ["para bebe", "baby_supplies"],
-  ["recien nacido", "baby_supplies"],
-  ["biberon", "baby_supplies"],
-  ["leche de formula", "baby_supplies"],
-  ["formula infantil", "baby_supplies"],
-  ["lactancia", "baby_supplies"],
-  ["leche en polvo", "baby_supplies"],
-  ["mascota", "animal_support"],
-  ["animal", "animal_support"],
-  ["perro", "animal_support"],
-  ["gato", "animal_support"],
-  // "donacion" is deliberately absent: after an earthquake it almost always
-  // means bringing supplies, not money, and mapping it to cash_or_donation
-  // filtered out every goods collection point. "dinero" and "plata" are
-  // unambiguous.
-  ["dinero", "cash_or_donation"],
-  ["plata", "cash_or_donation"],
-  ["informacion", "information"],
-  ["alerta", "information"],
-  ["comunicado", "information"],
-];
+const CATEGORY_KEYWORDS: ReadonlyArray<readonly [string, string]> = Object.entries(
+  vocabulario.palabrasPorCategoria,
+).flatMap(([categoria, palabras]) => palabras.map((palabra) => [palabra, categoria] as const));
 
 /**
  * Words that mean the question is about this emergency at all.
@@ -507,79 +402,7 @@ const CATEGORY_KEYWORDS: ReadonlyArray<readonly [string, string]> = [
  * `hazard`; asked the capital of France, `official_update`. The prompt tells it
  * to leave the field empty when nothing can be deduced, and it guesses anyway.
  */
-const DOMAIN_TERMS = [
-  // Kinds of place
-  "acopio",
-  "albergue",
-  "refugio",
-  "alojamiento",
-  "punto",
-  "centro",
-  "sede",
-  "hospital",
-  "puesto",
-  "brigada",
-  "colegio",
-  "coliseo",
-  "parque",
-  // The emergency itself
-  "sismo",
-  "temblor",
-  "terremoto",
-  "replica",
-  "damnificad",
-  "emergencia",
-  "desastre",
-  "afectad",
-  // Raíz, no palabra entera: "se derrumbó" no contiene "derrumbe".
-  "derrumb",
-  "escombro",
-  // La palabra que usan las propias fuentes en sus títulos: Cali Ayuda
-  // publica "Recolección: campaña de solidaridad con...". Alguien que copie
-  // ese nombre recibía "eso no lo tengo".
-  "recolec",
-  // Se perdió la casa. Es la frase más desesperada que nos puede llegar y no
-  // pasaba el filtro.
-  "se cayo",
-  "se vino abajo",
-  "perdi mi casa",
-  "perdi todo",
-  "quede sin",
-  // Grupos por los que se pregunta sin nombrar un recurso.
-  "adulto mayor",
-  "tercera edad",
-  "discapacidad",
-  // La suspensión de clases es de lo más consultado tras un sismo, pero
-  // "clases" a secas casa con clases de inglés o de yoga.
-  "suspendieron",
-  "suspension de clases",
-  "hay clases",
-  "magnitud",
-  // Giving and receiving
-  "ayuda",
-  "ayudar",
-  "donar",
-  "donacion",
-  "recib",
-  "entreg",
-  "necesit",
-  "aporta",
-  "colabora",
-  "voluntari",
-  "reparto",
-  "reparten",
-  "dejar",
-  "llevar",
-  // Official information
-  "oficial",
-  "autoridad",
-  "alcaldia",
-  "gobernacion",
-  "comunicado",
-  "alerta",
-  "aviso",
-  "boletin",
-];
+const DOMAIN_TERMS: readonly string[] = vocabulario.terminosDeDominio;
 
 /**
  * True when the question carries any signal that it is about this emergency:

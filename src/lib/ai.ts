@@ -61,9 +61,11 @@ export const AI_LIMITS = {
   /** Plan 13.4: bounded user input. */
   maxQuestionChars: 800,
   /**
-   * Deliberately high ceiling: reasoning tokens count as output, and if the
-   * budget runs out while reasoning, the response comes back empty. The
-   * object itself takes ~80 tokens; the rest is headroom for reasoning.
+   * NO se puede usar junto con salida estructurada: el proveedor responde 400
+   * ("max_tokens cannot be set when response_format type is 'json_schema'").
+   * Queda para llamadas sin esquema. El techo alto era porque los tokens de
+   * razonamiento cuentan como salida y, si se agota el presupuesto razonando,
+   * la respuesta vuelve vacía.
    */
   maxOutputTokens: 700,
   /** Measured: 3-5s per call with reasoning_effort low. */

@@ -65,6 +65,11 @@ Things that look wrong until you know why:
   vowel, so `/mam[áa]\b/` never matches "mamá".
 - **`reasoning_effort: low` is a requirement.** `gpt-oss` models bill reasoning
   as output; at medium they spend the whole budget reasoning and emit nothing.
+- **The vocabulary lives in `src/lib/data/vocabulario.json`,** not in code, so
+  people who know how their town speaks can extend it without TypeScript. Terms
+  are matched as substrings against folded text: an accent makes a term match
+  nothing, silently. `vocabulario-data.test.ts` enforces the rules; the guide
+  for contributors is `docs/VOCABULARIO.md`.
 - **Categories and municipalities are extracted by code, not by the model.** The
   model confused the enums systematically. The model emits *names*; code
   resolves identifiers, so it cannot invent a DANE code.

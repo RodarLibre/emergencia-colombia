@@ -198,7 +198,12 @@ export async function resolveQuestion(
       system: SYSTEM_PROMPT,
       prompt: trimmed,
       temperature: 0,
-      maxOutputTokens: AI_LIMITS.maxOutputTokens,
+      // Sin límite de tokens a propósito: el proveedor rechaza la petición
+      // entera si se combina un tope con salida estructurada —"max_tokens
+      // cannot be set when response_format type is 'json_schema'"— y ese 400
+      // lo tragaba el catch, así que toda pregunta caía al camino
+      // determinista y parecía que la llave no servía. Quien acota el gasto
+      // es `reasoning_effort: low`: medido, 48 tokens de salida por consulta.
       maxRetries: AI_LIMITS.maxRetries,
       abortSignal: AbortSignal.timeout(AI_LIMITS.timeoutMs),
       providerOptions: PROVIDER_OPTIONS,
