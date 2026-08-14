@@ -129,7 +129,12 @@ export function Chat() {
         ) : view.kind === "scope" ? (
           <ScopeView reason={view.reason} />
         ) : (
-          <AnswerView question={view.question} answer={view.answer} filters={view.filters} onPick={run} />
+          <AnswerView
+            question={view.question}
+            answer={view.answer}
+            filters={view.filters}
+            onPick={run}
+          />
         )}
       </div>
     </div>
@@ -173,8 +178,8 @@ function SearchBox({
           </p>
           <p className="text-muted text-[0.92rem] leading-relaxed">
             Una sola pregunta busca{" "}
-            {sourceCount ? `en los ${sourceCount} sitios` : "en todos los sitios"} de la
-            emergencia a la vez. Te devuelvo direcciones, horarios y quién lo publicó.
+            {sourceCount ? `en los ${sourceCount} sitios` : "en todos los sitios"} de la emergencia
+            a la vez. Te devuelvo direcciones, horarios y quién lo publicó.
           </p>
         </>
       ) : null}
@@ -281,7 +286,9 @@ function StatusStrip({ view, stats }: { view: View; stats: CatalogStats | null }
   const { answer, filters } = view;
   const searched = [
     ...filters.categories.map((c) => CATEGORY_LABELS[c as Category]?.toLowerCase()).filter(Boolean),
-    ...filters.types.map((t) => RECORD_TYPE_LABELS[t as RecordTypeV1]?.toLowerCase()).filter(Boolean),
+    ...filters.types
+      .map((t) => RECORD_TYPE_LABELS[t as RecordTypeV1]?.toLowerCase())
+      .filter(Boolean),
     filters.municipality,
   ].filter(Boolean);
   const what = searched.length > 0 ? searched.join(" · ") : (filters.text ?? "tu pregunta");
@@ -323,7 +330,13 @@ function Loading() {
  * be asked — an unordered set of entry points — so they get rules and no
  * numbering: numbers would claim a sequence that does not exist.
  */
-function Home({ stats, onPick }: { stats: CatalogStats | null; onPick: (question: string) => void }) {
+function Home({
+  stats,
+  onPick,
+}: {
+  stats: CatalogStats | null;
+  onPick: (question: string) => void;
+}) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
@@ -407,9 +420,7 @@ function PersonSafety() {
         No tengo listas de personas. Ninguna. Estos sí las tienen:
       </p>
       <div className="flex flex-col gap-2">
-        <CallNow>
-          Llamar al 123
-        </CallNow>
+        <CallNow>Llamar al 123</CallNow>
         <ReferralPill>Cruz Roja — contacto familiar</ReferralPill>
         <ReferralPill>Medicina Legal</ReferralPill>
       </div>
@@ -427,9 +438,7 @@ function MedicalEmergency() {
       <p className="font-display text-[1.15rem] leading-tight font-bold">
         Si hay una emergencia médica, llamá ahora.
       </p>
-      <CallNow>
-        Llamar al 123
-      </CallNow>
+      <CallNow>Llamar al 123</CallNow>
       <p className="text-[0.92rem] leading-relaxed">
         No despachamos ambulancias, no atendemos rescates y no damos orientación médica. Solo
         buscamos lo que otros sitios publican.

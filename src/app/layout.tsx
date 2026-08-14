@@ -55,10 +55,7 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // Integrity wall: if test data is enabled in production, no record is served.
   // See src/lib/guards.ts.
-  const [integrity, stats] = await Promise.all([
-    checkProductionDataIntegrity(),
-    getCatalogStats(),
-  ]);
+  const [integrity, stats] = await Promise.all([checkProductionDataIntegrity(), getCatalogStats()]);
 
   return (
     <html
@@ -99,7 +96,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </p>
 
           <header className="bg-official-bg text-official-text flex items-center justify-between gap-3 px-5 py-2.5">
-            <Link href="/" className="label flex items-center gap-1.5 !text-[0.82rem] hover:opacity-80">
+            <Link
+              href="/"
+              className="label flex items-center gap-1.5 !text-[0.82rem] hover:opacity-80"
+            >
               <svg
                 viewBox="0 0 24 24"
                 width="16"
@@ -141,6 +141,26 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <footer className="border-rule text-muted border-t">
             <div className="px-5 py-4 text-[0.78rem] leading-relaxed">
               Proyecto comunitario, sin relación oficial con el 123, la UNGRD ni la Cruz Roja.
+            </div>
+            {/*
+              Authorship, in the same quiet mono the rest of the sheet uses for
+              provenance. Who made the instrument is provenance too — but it
+              sits below the disclaimer, never above it.
+            */}
+            <div className="stamp px-5 pb-4">
+              Hecho con{" "}
+              <span aria-label="amor" role="img">
+                ❤️
+              </span>{" "}
+              por{" "}
+              <a
+                href="https://rodarlibre.co"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-accent underline underline-offset-2"
+              >
+                Rodar Libre
+              </a>
             </div>
           </footer>
         </div>

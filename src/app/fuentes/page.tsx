@@ -39,7 +39,9 @@ function sourceBand(r: Row): { className: string; label: string } {
       label: "No conectada todavía",
     };
   }
-  const read = r.last_observed_at ? `Leída ${relativeTime(new Date(r.last_observed_at))}` : "Sin lecturas todavía";
+  const read = r.last_observed_at
+    ? `Leída ${relativeTime(new Date(r.last_observed_at))}`
+    : "Sin lecturas todavía";
   if (r.trust_label === "official") {
     return { className: "bg-official-bg text-official-text", label: read };
   }
@@ -120,8 +122,8 @@ export default async function FuentesPage() {
           <h2 className="font-display text-[1.6rem] leading-[1.05] font-bold">Fuentes</h2>
         )}
         <p className="text-[0.95rem] leading-relaxed">
-          Nada de esto lo publicamos nosotros. Si tu búsqueda no encontró nada, entrá directo a
-          cada sitio.
+          Nada de esto lo publicamos nosotros. Si tu búsqueda no encontró nada, entrá directo a cada
+          sitio.
         </p>
       </div>
 
@@ -135,11 +137,15 @@ export default async function FuentesPage() {
           {enabled.length > 0 ? (
             <div className="border-border bg-surface flex gap-5 border p-3">
               <div>
-                <div className="font-mono text-[1.3rem] leading-none font-medium">{totalRecords}</div>
+                <div className="font-mono text-[1.3rem] leading-none font-medium">
+                  {totalRecords}
+                </div>
                 <div className="label text-muted">registros</div>
               </div>
               <div>
-                <div className="font-mono text-[1.3rem] leading-none font-medium">{enabled.length}</div>
+                <div className="font-mono text-[1.3rem] leading-none font-medium">
+                  {enabled.length}
+                </div>
                 <div className="label text-muted">conectadas</div>
               </div>
               {lastRead ? (
@@ -164,7 +170,9 @@ export default async function FuentesPage() {
               return (
                 <li key={r.slug}>
                   <article className="border-border border">
-                    <div className={`flex items-center justify-between gap-2 px-3 py-1.5 ${b.className}`}>
+                    <div
+                      className={`flex items-center justify-between gap-2 px-3 py-1.5 ${b.className}`}
+                    >
                       <span className="label shrink-0 whitespace-nowrap">
                         {TRUST_LABELS[r.trust_label] ?? r.trust_label}
                       </span>
@@ -172,7 +180,9 @@ export default async function FuentesPage() {
                     </div>
 
                     <div className="flex flex-col gap-2 p-3">
-                      <p className="font-display text-[1.15rem] leading-tight font-bold">{r.name}</p>
+                      <p className="font-display text-[1.15rem] leading-tight font-bold">
+                        {r.name}
+                      </p>
                       <p className="text-muted text-[0.88rem] leading-snug">
                         {MODE_LABELS[r.mode] ?? r.mode}
                       </p>
@@ -208,9 +218,8 @@ export default async function FuentesPage() {
           ¿Es tuyo uno de estos sitios?
         </h3>
         <p className="text-[0.9rem] leading-relaxed">
-          Escribinos para cambiar cómo se lee tu sitio, o para retirar un registro: se atiende
-          antes que cualquier otra tarea. Lo que se retira no vuelve a entrar en lecturas
-          posteriores.
+          Escribinos para cambiar cómo se lee tu sitio, o para retirar un registro: se atiende antes
+          que cualquier otra tarea. Lo que se retira no vuelve a entrar en lecturas posteriores.
         </p>
       </div>
     </div>

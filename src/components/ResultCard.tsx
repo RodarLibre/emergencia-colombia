@@ -109,7 +109,9 @@ export function ResultCard({
 
         {sameplace && sameplace.length > 0 ? (
           <div className="border-warn-border bg-warn-bg text-warn-text border-l-4 p-2.5 text-[0.85rem] leading-relaxed">
-            {disagrees ? <strong className="block font-semibold">Dos fuentes se contradicen.</strong> : null}
+            {disagrees ? (
+              <strong className="block font-semibold">Dos fuentes se contradicen.</strong>
+            ) : null}
             Otra fuente podría hablar del mismo lugar:{" "}
             {sameplace.map((o, i) => (
               <span key={o.sourceRecordId}>
@@ -164,7 +166,9 @@ export function ResultCard({
               {result.locality}, {result.admin2Name}
             </p>
           ) : null}
-          <p className="stamp text-muted">{verificationLabel(result.verificationLevel, result.sourceName)}</p>
+          <p className="stamp text-muted">
+            {verificationLabel(result.verificationLevel, result.sourceName)}
+          </p>
 
           <div className="flex gap-1.5">
             {result.canonicalUrl ? (

@@ -59,8 +59,8 @@ export default async function RecordPage({ params }: { params: Promise<{ id: str
           <p className="text-muted text-[0.98rem] leading-snug font-semibold">{latest.title}</p>
         ) : null}
         <p className="text-[0.92rem] leading-relaxed">
-          Cada vez que leemos {latest.source_name} guardamos lo que decía. Nada se sobreescribe,
-          así podés ver qué cambió.
+          Cada vez que leemos {latest.source_name} guardamos lo que decía. Nada se sobreescribe, así
+          podés ver qué cambió.
         </p>
       </div>
 
@@ -73,7 +73,10 @@ export default async function RecordPage({ params }: { params: Promise<{ id: str
 
           return (
             <div key={o.id} className="border-border flex gap-3 border-b py-3">
-              <div className="stamp text-muted w-[4.4rem] shrink-0" title={absoluteTime(observedAt)}>
+              <div
+                className="stamp text-muted w-[4.4rem] shrink-0"
+                title={absoluteTime(observedAt)}
+              >
                 {relativeTime(observedAt)}
               </div>
               <div className="flex flex-col gap-1.5">

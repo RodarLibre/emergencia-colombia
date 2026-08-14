@@ -358,7 +358,9 @@ export async function getCatalogStats(): Promise<CatalogStats> {
   return {
     sourceCount: sourceRows[0]?.source_count ?? 0,
     recordCount: latestRows[0]?.record_count ?? 0,
-    lastObservedAt: latestRows[0]?.last_observed_at ? new Date(latestRows[0].last_observed_at) : null,
+    lastObservedAt: latestRows[0]?.last_observed_at
+      ? new Date(latestRows[0].last_observed_at)
+      : null,
   };
 }
 
