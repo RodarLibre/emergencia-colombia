@@ -41,6 +41,10 @@ export type AnswerNote =
 
 /** How complete a record is, which is also how useful it is to act on. */
 function actionability(r: SearchResult): number {
+  // A record its own source stopped publishing is never the one to lead with,
+  // however complete it looks. It stays in the results — absence is not proof
+  // it closed — but it does not get held up as the answer.
+  if (r.noLongerListed) return -1;
   return (r.displayAddress ? 2 : 0) + (r.admin2Name ? 1 : 0) + (r.openingHours ? 1 : 0);
 }
 

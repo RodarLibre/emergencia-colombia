@@ -28,6 +28,15 @@ function band(result: SearchResult): { className: string; label: string } {
   const lastUpdate = result.sourceUpdatedAt ?? result.observedAt;
   const isClosed = result.status === "closed" || result.status === "fulfilled";
 
+  // Above everything else, including "official": the source read fine and no
+  // longer lists this. Whatever it said before, nobody is standing behind it
+  // now, and that is what someone about to drive there needs first.
+  if (result.noLongerListed) {
+    return {
+      className: "bg-warn-bg text-warn-text border-warn-border border-b",
+      label: `La fuente ya no lo publica · visto ${relativeTime(result.lastSeenAt)}`,
+    };
+  }
   if (result.verificationLevel === "official") {
     return {
       className: "bg-official-bg text-official-text",

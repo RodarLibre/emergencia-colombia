@@ -23,6 +23,8 @@ function result(overrides: Partial<SearchResult>): SearchResult {
     sourceName: "",
     sourceSlug: "source-a",
     sourceTrustLabel: "community",
+    noLongerListed: false,
+    lastSeenAt: new Date("2026-08-13T00:00:00Z"),
     canonicalUrl: null,
     municipalityUnspecified: false,
     freshness: "fresh",

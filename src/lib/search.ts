@@ -46,6 +46,18 @@ export type SearchResult = {
   municipalityUnspecified: boolean;
   /** Computed, not stored: it's presentation, not truth. */
   freshness: FreshnessState;
+  /**
+   * The source read fine, and this record was not in its listing.
+   *
+   * Not a withdrawal: invariant 3 says a record is never deleted for going
+   * absent, because a listing can drop something for a hundred reasons. But
+   * staying silent about it is its own kind of lie — a place that vanished
+   * from its source has most likely closed, and someone about to drive there
+   * deserves to know that nobody has listed it since.
+   */
+  noLongerListed: boolean;
+  /** When the source last showed this record in a listing. */
+  lastSeenAt: Date;
 };
 
 type Row = {
@@ -69,6 +81,8 @@ type Row = {
   trust_label: string;
   canonical_url: string | null;
   municipality_unspecified?: boolean;
+  no_longer_listed?: boolean;
+  last_seen_at: string | Date;
 };
 
 const DEFAULT_LIMIT = 40;
@@ -192,6 +206,10 @@ export async function searchRecords(filters: SearchFilters): Promise<SearchResul
         o.observed_at,
         o.search_text,
         sr.canonical_url,
+        sr.last_seen_at,
+        -- The newest read across this source's visible records: effectively
+        -- the timestamp of its last successful ingest.
+        MAX(sr.last_seen_at) OVER (PARTITION BY sr.source_id) AS source_last_read,
         s.name  AS source_name,
         s.slug  AS source_slug,
         s.trust_label,
@@ -207,7 +225,13 @@ export async function searchRecords(filters: SearchFilters): Promise<SearchResul
         AND ${excludeDemoSources()}
       ORDER BY o.source_record_id, o.observed_at DESC
     )
-    SELECT l.*, ${rank} AS rank, (l.admin2_code IS NULL) AS municipality_unspecified
+    SELECT
+      l.*,
+      ${rank} AS rank,
+      (l.admin2_code IS NULL) AS municipality_unspecified,
+      -- Five minutes of slack so the spread of timestamps within a single
+      -- ingest run never marks a record as missing.
+      (l.last_seen_at < l.source_last_read - INTERVAL '5 minutes') AS no_longer_listed
     FROM latest l
     WHERE ${sql.join(conditions, sql` AND `)}
     -- Soft quality filter: nothing is hidden, but among results of similar
@@ -253,6 +277,8 @@ export async function searchRecords(filters: SearchFilters): Promise<SearchResul
       sourceTrustLabel: r.trust_label,
       canonicalUrl: r.canonical_url,
       municipalityUnspecified: Boolean(r.municipality_unspecified),
+      noLongerListed: Boolean(r.no_longer_listed),
+      lastSeenAt: new Date(r.last_seen_at),
       // Freshness from what the source says, if it says it; otherwise from
       // when this system observed it.
       freshness: computeFreshness(recordType, sourceUpdatedAt ?? observedAt, now),
