@@ -14,6 +14,8 @@ Read `CONVENTIONS.md` before writing code. `README.md` has the full picture.
 
 ## What this is
 
+Live at **https://emergenciacolombia.org**. MIT licensed.
+
 A read-only federation layer over the community and official websites that
 sprang up after the Colombia earthquake of 2026-08-10. One question box in
 Spanish searches across all connected sources; every result names where it came
