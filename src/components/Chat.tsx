@@ -37,6 +37,12 @@ type View =
   | { kind: "scope"; question: string; reason: OutOfScopeReason };
 
 const NOTE_TEXT: Partial<Record<AnswerNote, { lead: string; rest: string }>> = {
+  // Nadie se queda sin respuesta porque una palabra no estuviera en una lista,
+  // pero tampoco se finge una certeza que no hay.
+  guessed: {
+    lead: "Interpreté lo que buscabas.",
+    rest: "Si no era eso, escribilo de otra forma o con otras palabras.",
+  },
   rate_limited: {
     lead: "Busqué tu texto tal cual.",
     rest: "Se acabó el cupo de preguntas interpretadas de esta hora; los resultados siguen siendo reales.",

@@ -61,6 +61,14 @@ export type ResolvedQuery = {
    * "fallback" the provider failed or is off: searched the raw text as-is
    */
   interpretedBy: "model" | "cache" | "limited" | "fallback";
+  /**
+   * El vocabulario no reconoció la pregunta y el modelo sí.
+   *
+   * Se responde igual, pero diciéndolo: la lista de palabras no puede seguir
+   * siendo lo que niega una respuesta. Quien escribió "estoy sin casa" no
+   * merece un rechazo porque a nadie se le ocurrió agregar esa frase.
+   */
+  guessed: boolean;
 };
 
 const SYSTEM_PROMPT = `Convertis preguntas en espanol sobre la emergencia por el terremoto en Colombia a filtros de busqueda.
@@ -108,6 +116,9 @@ function fallbackQuery(question: string): ResolvedQuery {
     q: trimmed.length > 0 ? trimmed : null,
     outOfScope: fallbackReason !== null,
     outOfScopeReason: fallbackReason,
+    // Sin modelo no hay nada que interpretar: o lo reconoce el vocabulario, o
+    // se busca el texto tal cual.
+    guessed: false,
     interpretedBy: "fallback",
   };
 }
@@ -155,12 +166,18 @@ export async function resolveQuestion(
 
   const deterministicCategories = extractCategories(trimmed);
 
-  // Whether the question is about this emergency at all is decided by code,
-  // not by the model. Asked "que hora es" the model answered `hazard` and the
-  // search returned seven earthquakes as if they were the answer. Without a
-  // domain signal its guessed type is discarded and the text search runs
-  // alone, which correctly finds nothing.
-  const onTopic = hasDomainSignal(trimmed);
+  // El vocabulario es un atajo, no una puerta.
+  //
+  // Antes decidía solo él: sin señal de dominio se descartaba el tipo que
+  // diera el modelo. El problema es que trata igual dos fallos distintos —el
+  // modelo alucinando `hazard` para "que hora es", y el modelo entendiendo
+  // bien "estoy sin casa" cuando la lista no tenía esa frase— y por eso la
+  // lista no se terminaba nunca: cada palabra agregada era una que el modelo
+  // ya entendía.
+  //
+  // Ahora reconocerlo por código es el camino rápido y seguro; que lo
+  // reconozca solo el modelo también vale, pero se marca como interpretación.
+  const recognizedByCode = hasDomainSignal(trimmed);
 
   // The cache is checked BEFORE spending quota: a repeated question doesn't
   // touch the provider, so it shouldn't consume anyone's limit either.
@@ -168,13 +185,14 @@ export async function resolveQuestion(
   if (cached) {
     const municipality = findMunicipalityInText(trimmed) ?? resolveMunicipality(cached.municipio);
     const fromCache: ResolvedQuery = {
-      types: onTopic ? dedupe(cached.tipos) : [],
+      types: dedupe(cached.tipos),
       admin2Code: municipality?.code ?? null,
       admin2Name: municipality?.name ?? null,
       categories: deterministicCategories,
       q: cached.texto?.trim() || null,
       outOfScope: false,
       outOfScopeReason: null,
+      guessed: !recognizedByCode && cached.tipos.length > 0,
       interpretedBy: "cache",
     };
     return withFallbackText(fromCache, trimmed);
@@ -232,7 +250,7 @@ export async function resolveQuestion(
     const fromModel: ResolvedQuery = {
       // With reasoning_effort low the model repeats items ("water","water",...).
       // Deduplicated here instead of trusting it not to.
-      types: onTopic ? dedupe(object.tipos) : [],
+      types: dedupe(object.tipos),
       admin2Code: municipality?.code ?? null,
       admin2Name: municipality?.name ?? null,
       // Categories are fully deterministic. The model was asked for them at
@@ -245,6 +263,7 @@ export async function resolveQuestion(
       // Deterministic, nothing else. See the note about false positives.
       outOfScope: deterministicOutOfScope !== null,
       outOfScopeReason: deterministicOutOfScope,
+      guessed: !recognizedByCode && object.tipos.length > 0,
       interpretedBy: "model",
     };
     return withFallbackText(fromModel, trimmed);

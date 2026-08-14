@@ -37,7 +37,14 @@ export type Answer = {
 };
 
 export type AnswerNote =
-  "widened" | "disagreement" | "stale" | "off_topic" | "rate_limited" | "fallback" | "busy";
+  | "guessed"
+  | "widened"
+  | "disagreement"
+  | "stale"
+  | "off_topic"
+  | "rate_limited"
+  | "fallback"
+  | "busy";
 
 /** How complete a record is, which is also how useful it is to act on. */
 function actionability(r: SearchResult): number {
@@ -117,6 +124,8 @@ export function composeAnswer(input: ComposeInput): Answer {
   const understoodSomething =
     query.types.length > 0 || query.categories.length > 0 || query.admin2Code !== null;
   if (query.interpretedBy === "fallback" && !understoodSomething) notes.push("fallback");
+  // Solo el modelo la reconoció: se responde, pero se dice que es una lectura.
+  if (query.guessed) notes.push("guessed");
   if (search.dropped.length > 0) notes.push("widened");
   if (results.some((r) => r.freshness !== "fresh")) notes.push("stale");
 
