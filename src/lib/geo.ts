@@ -63,11 +63,10 @@ function cajaDe(poligonos: readonly Anillo[]): Caja {
   return { minLng, maxLng, minLat, maxLat };
 }
 
-const AREA = limites.municipios.map((m) => ({
-  code: m.code,
-  poligonos: m.poligonos as readonly Anillo[],
-  caja: cajaDe(m.poligonos as readonly Anillo[]),
-}));
+const AREA = limites.municipios.map((m) => {
+  const poligonos = m.poligonos as readonly Anillo[];
+  return { code: m.code, poligonos, caja: cajaDe(poligonos) };
+});
 
 export const LIMITES_FUENTE = {
   fuente: limites.fuente,
