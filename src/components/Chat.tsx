@@ -452,12 +452,68 @@ function CoverageView({ municipality, department }: { municipality: string; depa
 }
 
 function ScopeView({ reason }: { reason: OutOfScopeReason }) {
+  // Una mascota perdida duele, pero no es una emergencia: si se pinta con el
+  // mismo rojo que "llamá al 123", el rojo deja de significar algo.
+  if (reason === "lost_pet") {
+    return (
+      <div className="border-rule flex flex-col gap-3 border p-4">
+        <LostPet />
+      </div>
+    );
+  }
+
   return (
     <div className="border-danger-border bg-danger-bg text-danger-text flex flex-col gap-3 border p-4">
       {reason === "person_safety" ? <PersonSafety /> : null}
       {reason === "medical_emergency" ? <MedicalEmergency /> : null}
       {reason === "structure" ? <Structure /> : null}
     </div>
+  );
+}
+
+/**
+ * Mascotas perdidas: enviamos, no copiamos.
+ *
+ * Esos sitios guardan reportes de personas con su nombre y su WhatsApp. Copiar
+ * eso rompe el invariante 6 y no le sirve a nadie: quien busca a su perro
+ * necesita el sitio donde puede reportar y mirar fotos, no una copia nuestra
+ * envejeciendo aparte.
+ */
+function LostPet() {
+  return (
+    <>
+      <p className="font-display text-[1.15rem] leading-tight font-bold">
+        No tengo reportes de mascotas. Estos dos sitios sí:
+      </p>
+      <div className="flex flex-col gap-2">
+        <ReferralLink href="https://reunemascotas.brannd.com.co/">
+          Reúne Mascotas — perros y gatos
+        </ReferralLink>
+        <ReferralLink href="https://personal-hffxivhl.outsystemscloud.com/MascotasPerdidas/ReportList">
+          Mascotas Perdidas — lista de reportes
+        </ReferralLink>
+      </div>
+      <p className="text-muted text-[0.92rem] leading-relaxed">
+        Son de otras personas, no los manejamos nosotros. Acá sí podés buscar dónde reciben comida o
+        insumos para animales.
+      </p>
+    </>
+  );
+}
+
+function ReferralLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="border-rule hover:border-accent flex min-h-[3rem] items-center justify-between gap-3 border px-3 text-[0.92rem] leading-snug font-semibold"
+    >
+      <span>{children}</span>
+      <span aria-hidden="true" className="text-accent shrink-0">
+        ↗
+      </span>
+    </a>
   );
 }
 

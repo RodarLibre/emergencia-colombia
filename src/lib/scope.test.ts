@@ -114,3 +114,94 @@ describe("other refusals keep their own routing", () => {
     expect(detectOutOfScope("quiero donar sangre")).toBeNull();
   });
 });
+
+/**
+ * Mascotas perdidas.
+ *
+ * Lo importante no es reconocer "perdí mi perro" — eso es fácil. Es no
+ * tragarse "busco comida para mi perro", que SÍ podemos responder: hay puntos
+ * que reciben insumos para animales. Y es no dejar que "busco a mi perro"
+ * caiga en la burbuja de personas desaparecidas, que le mostraría Medicina
+ * Legal a alguien que perdió a su gato.
+ */
+describe("mascotas perdidas", () => {
+  const SE_DERIVAN = [
+    "perdí mi perro",
+    "perdi mi perro en el terremoto",
+    "se me perdió el gato",
+    "se me perdio la gata en Cali",
+    "mi perro se perdió",
+    "mi perrita está perdida",
+    "el gato no aparece desde el sismo",
+    "se escapó mi perro",
+    "busco a mi perro",
+    "estoy buscando a mi gato",
+    "encontré un perro en la calle",
+    "me encontré una gata perdida",
+    "reportar mascota perdida",
+    "perro encontrado en Pereira",
+    "dónde reporto un gato extraviado",
+  ];
+
+  for (const q of SE_DERIVAN) {
+    it(`deriva: "${q}"`, () => {
+      expect(detectOutOfScope(q)).toBe("lost_pet");
+    });
+  }
+
+  const SE_BUSCAN = [
+    "busco comida para mi perro",
+    "dónde llevo comida para perros",
+    "dónde recibo alimento para mascotas",
+    "apoyo animal en Pereira",
+    "quién recibe comida de gatos",
+    "veterinaria para mi gato",
+    "necesito arena para gatos",
+  ];
+
+  for (const q of SE_BUSCAN) {
+    it(`sigue buscando: "${q}"`, () => {
+      expect(detectOutOfScope(q)).toBeNull();
+    });
+  }
+
+  it("una persona manda sobre una mascota", () => {
+    // "busco a mi hijo y a mi perro" es una pregunta por el hijo.
+    expect(detectOutOfScope("busco a mi hijo y a mi perro")).toBe("person_safety");
+  });
+
+  it("no le quita el paso a una emergencia médica", () => {
+    expect(detectOutOfScope("mi perro está bajo los escombros y no puedo respirar")).toBe(
+      "medical_emergency",
+    );
+  });
+});
+
+/**
+ * `\w` es ASCII en JavaScript, igual que `\b`.
+ *
+ * `encontr\w*` se detenía antes de la "é" de "encontré", así que
+ * `encontr\w*\s+a\s+mi` nunca coincidía con "encontré a mi hijo": alguien
+ * preguntando por su hijo en pasado caía en una búsqueda normal. Y "busqué"
+ * ni siquiera comparte la raíz con "busco" — cambia la c por qu.
+ */
+describe("pretérito y tildes", () => {
+  const EN_PASADO = [
+    "encontré a mi hijo",
+    "buscó a mi mamá",
+    "busqué a mi hermano",
+    "ubiqué a mi tía",
+    "localicé a mi hermana",
+    "perdí a mi abuela",
+  ];
+
+  for (const q of EN_PASADO) {
+    it(`detecta: "${q}"`, () => {
+      expect(detectOutOfScope(q)).toBe("person_safety");
+    });
+  }
+
+  it("no se lleva por delante una búsqueda normal", () => {
+    expect(detectOutOfScope("busqué agua y no encontré")).toBeNull();
+  });
+});

@@ -27,15 +27,23 @@
  * Why a question is out of scope. The reason decides which answer is given:
  * being told "this site can't help you" is useless without being told who can.
  */
-export type OutOfScopeReason = "medical_emergency" | "person_safety" | "structure";
+export type OutOfScopeReason = "medical_emergency" | "person_safety" | "structure" | "lost_pet";
 
+/**
+ * Spanish stems, because `\w` is ASCII in JavaScript.
+ *
+ * `encontr\w*` stops before the "é" of "encontré", so `encontr\w*\s+a\s+mi`
+ * never matched "encontré a mi hijo" — a parent asking about their child in the
+ * past tense fell straight through to a normal search. Same family of bug as
+ * the missing word boundary after an accented vowel.
+ */
 const MEDICAL_EMERGENCY_PATTERNS: RegExp[] = [
   // `sangr` used to be the stem here, which blocked "donde donar sangre para
   // los heridos" — a blood donor turned away as a medical emergency. Bleeding
   // is a verb form or a noun of its own; "sangre" alone is not.
   /\b(me\s+duele|dolor\s+de\s+pecho|no\s+puedo\s+respirar|sangrand|sangrado|me\s+sangra|hemorragia|convuls|desmay|infarto|inconsciente)/i,
   // Conjugations are accepted ("necesito", "necesitamos") rather than an exact form.
-  /\b(envi\w*|mand\w*|necesit\w*|manden)\s+(una?\s+)?(ambulancia|rescate|bomberos|ayuda\s+urgente)/i,
+  /\b(envi[a-záéíóúüñ]*|mand[a-záéíóúüñ]*|necesit[a-záéíóúüñ]*|manden)\s+(una?\s+)?(ambulancia|rescate|bomberos|ayuda\s+urgente)/i,
   /\bambulancia\b/i,
   /\b(atrapad|sepultad|bajo\s+los\s+escombros)/i,
 ];
@@ -63,7 +71,7 @@ const STRUCTURE_PATTERNS: RegExp[] = [
 // No trailing \b: in JavaScript \b is ASCII-only, so there is no word
 // boundary after an accented vowel and /mam[áa]\b/ never matches "mamá".
 const PERSON_REFERENCE =
-  /\b(mi|mis|nuestr[oa]s?|un|una|alg[uú]n[ao]?)\s+(familiar\w*|pariente\w*|mam[áa]|madre|pap[áa]|padre|padres|hij[oa]s?|herman[oa]s?|espos[oa]s?|marido|abuel[oa]s?|t[íi][oa]s?|prim[oa]s?|sobrin[oa]s?|niet[oa]s?|vecin[oa]s?|amig[oa]s?|novi[oa]s?|pareja|suegr[oa]s?|cuñad[oa]s?|compañer[oa]s?|conocid[oa]s?|persona\w*|seres\s+querid\w*|desaparecid\w*|herid\w*|v[íi]ctima\w*|fallecid\w*)/i;
+  /\b(mi|mis|nuestr[oa]s?|un|una|alg[uú]n[ao]?)\s+(familiar[a-záéíóúüñ]*|pariente[a-záéíóúüñ]*|mam[áa]|madre|pap[áa]|padre|padres|hij[oa]s?|herman[oa]s?|espos[oa]s?|marido|abuel[oa]s?|t[íi][oa]s?|prim[oa]s?|sobrin[oa]s?|niet[oa]s?|vecin[oa]s?|amig[oa]s?|novi[oa]s?|pareja|suegr[oa]s?|cuñad[oa]s?|compañer[oa]s?|conocid[oa]s?|persona[a-záéíóúüñ]*|seres\s+querid[a-záéíóúüñ]*|desaparecid[a-záéíóúüñ]*|herid[a-záéíóúüñ]*|v[íi]ctima[a-záéíóúüñ]*|fallecid[a-záéíóúüñ]*)/i;
 
 /**
  * A question about someone's physical condition or whereabouts. Deliberately
@@ -74,12 +82,14 @@ const PERSON_CONDITION =
   /\b(herid|lesionad|hospitaliz|internad|sobrevivi|falleci|muri[óo]|muert[oa]|con\s+vida|desaparec|rescatad|paradero|se[ñn]ales\s+de\s+vida|est[áa]\s+bien|d[óo]nde\s+est[áa]|qu[ée]\s+hospital|no\s+contesta|no\s+responde|no\s+me\s+contesta|no\s+s[ée]\s+nada|sin\s+noticias|perd[íi]\s+contacto|no\s+he\s+podido\s+(comunicar|contactar|hablar|localizar)|no\s+ha\s+(vuelto|regresado|llegado|aparecido)|no\s+lleg[óo]|no\s+aparece|sin\s+aparecer|(alguien|nadie)\s+(sabe|ha\s+visto|conoce)|sabe[ns]?\s+algo\s+de|(est[áa]|estaba|llevaron|trasladaron|internaron)\s+(en|a)\s+(un|el|qu[ée]|cu[áa]l)\s+(hospital|cl[íi]nica|centro\s+m[ée]dico|puesto\s+de\s+salud))/i;
 
 const PERSON_SAFETY_PATTERNS: RegExp[] = [
+  // Stems accept both spellings of the preterite: "busque" and "ubique"
+  // swap the c for qu, "localice" the z for c.
   // The personal "a" marks a human direct object in Spanish, which is exactly
   // the distinction needed: "buscar a mi hermano" vs "buscar agua".
   // Verb stems, not infinitives: people write "estoy buscando a mi hijo" and
   // "como encuentro a mi esposa". The required " a " is what keeps "donde
   // encuentro ayuda" out — no Spanish speaker writes "encuentro a ayuda".
-  /\b(encontr\w*|encuentr\w*|busc\w*|ubic\w*|localiz\w*|hall[aeo]\w*|contact\w*|saber\s+de|perd[íi]\w*|vist\w*|ver)\s+a\s+(mi|mis|un|una|alguien|alg[uú]n)/i,
+  /\b(encontr[a-záéíóúüñ]*|encuentr[a-záéíóúüñ]*|bus[cq][a-záéíóúüñ]*|ubi[cq][a-záéíóúüñ]*|locali[zc][a-záéíóúüñ]*|hall[aeo][a-záéíóúüñ]*|contact[a-záéíóúüñ]*|saber\s+de|perd[íi][a-záéíóúüñ]*|vist[a-záéíóúüñ]*|ver)\s+a\s+(mi|mis|un|una|alguien|alg[uú]n)/i,
   // Casualty lists, which this site does not hold and must never appear to.
   /\b(lista|listado|censo|registro|reporte)\s+(oficial\s+)?(de\s+)?(herid|lesionad|v[íi]ctima|fallecid|muert|desaparecid)/i,
   /\b(medicina\s+legal|morgue|identificaci[óo]n\s+de\s+(cuerpos|cad[áa]veres))/i,
@@ -92,9 +102,55 @@ const PERSON_SAFETY_PATTERNS: RegExp[] = [
   /\b(reportar|reporto|denunciar)\s+(un|una|a)\s+(desaparecid|persona)/i,
 ];
 
+/**
+ * A lost or found pet. We hold none of those reports, and two community sites
+ * do — so this refers out instead of searching.
+ *
+ * It has to be checked BEFORE person safety, because "busco a mi perro" matches
+ * the personal-"a" pattern above and would otherwise answer someone looking for
+ * their dog with the Red Cross and Medicina Legal. That is a cruel thing to put
+ * on a screen, and it was already happening.
+ *
+ * The condition half never accepts a bare "busco": "busco comida para mi perro"
+ * is a real search this site can answer — we do carry points that receive
+ * animal supplies. Only losing, finding or escaping counts, and the personal
+ * "a" is what separates "busco a mi perro" from "busco comida para perros".
+ */
+const PET =
+  "(perr[a-záéíóúüñ]*|gat[a-záéíóúüñ]*|mascota[a-záéíóúüñ]*|cachorr[a-záéíóúüñ]*|michi[a-záéíóúüñ]*|minin[a-záéíóúüñ]*|felin[a-záéíóúüñ]*|canin[a-záéíóúüñ]*)";
+
+const LOST_PET_PATTERNS: RegExp[] = [
+  // "perdí mi perro", "se me perdió el gato", "se escapó la gata".
+  new RegExp(
+    `\\b(perd[a-záéíóúüñ]*|extravi[a-záéíóúüñ]*|escap[a-záéíóúüñ]*|desaparec[a-záéíóúüñ]*)\\b.{0,15}?\\b${PET}`,
+    "i",
+  ),
+  // "mi perro se perdió", "el gato no aparece".
+  new RegExp(
+    `\\b${PET}\\b.{0,15}?\\b(perdid[a-záéíóúüñ]*|extraviad[a-záéíóúüñ]*|desaparecid[a-záéíóúüñ]*|se\\s+perdi[óo]|se\\s+escap[óo]|no\\s+aparece|no\\s+ha\\s+(vuelto|aparecido|llegado))`,
+    "i",
+  ),
+  // "busco a mi perro". The " a " is required, exactly as for people.
+  new RegExp(
+    `\\b(bus[cq][a-záéíóúüñ]*|encontr[a-záéíóúüñ]*|encuentr[a-záéíóúüñ]*|hall[aeo][a-záéíóúüñ]*|ubi[cq][a-záéíóúüñ]*|locali[zc][a-záéíóúüñ]*)\\s+a\\s+(mi|mis|un|una)\\s+${PET}`,
+    "i",
+  ),
+  // The other direction: someone who found an animal and wants to return it.
+  new RegExp(
+    `\\b(encontr[a-záéíóúüñ]*|hall[a-záéíóúüñ]*|recog[íi][a-záéíóúüñ]*|apareci[óo])\\s+(a\\s+)?(un|una)\\s+${PET}`,
+    "i",
+  ),
+  new RegExp(`\\b${PET}\\s+(perdid|extraviad|encontrad)[a-záéíóúüñ]*`, "i"),
+];
+
 export function detectOutOfScope(question: string): OutOfScopeReason | null {
   // A person actively dying outranks everything else: that answer is "call 123".
   if (MEDICAL_EMERGENCY_PATTERNS.some((re) => re.test(question))) return "medical_emergency";
+  // A pet only wins when no person is named: "busco a mi hijo y a mi perro" is
+  // a question about the child.
+  if (!PERSON_REFERENCE.test(question) && LOST_PET_PATTERNS.some((re) => re.test(question))) {
+    return "lost_pet";
+  }
   if (PERSON_SAFETY_PATTERNS.some((re) => re.test(question))) return "person_safety";
   if (PERSON_REFERENCE.test(question) && PERSON_CONDITION.test(question)) return "person_safety";
   if (STRUCTURE_PATTERNS.some((re) => re.test(question))) return "structure";
