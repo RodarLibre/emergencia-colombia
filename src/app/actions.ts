@@ -86,6 +86,7 @@ export async function ask(question: string): Promise<AskResult> {
 
   const search = await searchWithFallback({
     q: query.q,
+    rankBy: query.rankBy,
     types: query.types,
     admin2Code: query.admin2Code,
     categories: query.categories,

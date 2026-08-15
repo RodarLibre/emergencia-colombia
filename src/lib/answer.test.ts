@@ -21,6 +21,7 @@ function query(overrides: Partial<ResolvedQuery> = {}): ResolvedQuery {
     admin2Name: null,
     categories: [],
     q: null,
+    rankBy: null,
     outOfScope: false,
     outOfScopeReason: null,
     guessed: false,

@@ -132,3 +132,48 @@ describe("gemelos en la misma direccion", () => {
     expect(companions.every((c) => !ids.has(c.sourceRecordId))).toBe(true);
   });
 });
+
+/**
+ * `rankBy` ordena sin excluir.
+ *
+ * Alguien preguntó "dónde necesitan alcohol" y recibió 20 puntos de acopio que
+ * no tenían nada que ver: el modelo devolvió el tipo y ninguna palabra clave, y
+ * la única palabra con contenido de la pregunta se perdió. Dos registros pedían
+ * alcohol y ninguno estaba arriba.
+ *
+ * No puede filtrar: "hubo réplicas anoche" no aparece en ningún sismo, así que
+ * filtrar por esas palabras no respondería nada.
+ */
+describe("rankBy", () => {
+  it("no descarta ni un resultado", async () => {
+    const sin = await searchWithFallback({ types: [recordType], limit: 50 });
+    const con = await searchWithFallback({
+      types: [recordType],
+      rankBy: "una frase que no aparece en ningun registro",
+      limit: 50,
+    });
+
+    expect(con.results.length).toBe(sin.results.length);
+    expect(con.dropped).toEqual([]);
+  });
+
+  it("sube lo que coincide, sin sacar lo demás", async () => {
+    const base = await searchWithFallback({ types: [recordType], limit: 50 });
+    // Una palabra tomada de un registro que HOY no sale primero.
+    const ultimo = base.results.at(-1);
+    if (!ultimo) return;
+    const palabra = ultimo.title.split(/\s+/).find((w) => w.length > 5);
+    if (!palabra) return;
+
+    const con = await searchWithFallback({
+      types: [recordType],
+      rankBy: palabra,
+      limit: 50,
+    });
+
+    expect(con.results.length).toBe(base.results.length);
+    const posicion = con.results.findIndex((r) => r.sourceRecordId === ultimo.sourceRecordId);
+    const antes = base.results.findIndex((r) => r.sourceRecordId === ultimo.sourceRecordId);
+    expect(posicion).toBeLessThanOrEqual(antes);
+  });
+});

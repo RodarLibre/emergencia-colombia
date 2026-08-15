@@ -52,6 +52,14 @@ export type ResolvedQuery = {
   admin2Name: string | null;
   categories: string[];
   q: string | null;
+  /**
+   * The question kept as a hint for ORDERING, never for filtering.
+   *
+   * Set when the only thing extracted was a record type. A type alone narrows
+   * nothing — "punto de acopio" is 800 records — so the words of the question
+   * are the only signal left about what the person actually wanted.
+   */
+  rankBy: string | null;
   outOfScope: boolean;
   /** Why, so the reply can route to whoever can actually answer. */
   outOfScopeReason: OutOfScopeReason | null;
@@ -115,6 +123,7 @@ function fallbackQuery(question: string): ResolvedQuery {
     admin2Name: null,
     categories: [],
     q: trimmed.length > 0 ? trimmed : null,
+    rankBy: null,
     outOfScope: fallbackReason !== null,
     outOfScopeReason: fallbackReason,
     // Sin modelo no hay nada que interpretar: o lo reconoce el vocabulario, o
@@ -136,12 +145,24 @@ function fallbackQuery(question: string): ResolvedQuery {
  * "No filters" must never mean "show everything".
  */
 function withFallbackText(resolved: ResolvedQuery, question: string): ResolvedQuery {
-  const hasAnyFilter =
-    resolved.types.length > 0 ||
-    resolved.categories.length > 0 ||
-    resolved.admin2Code !== null ||
-    Boolean(resolved.q);
-  return hasAnyFilter ? resolved : { ...resolved, q: question };
+  if (resolved.q) return resolved;
+
+  // A record type is not a narrowing. Asked "donde necesitan alcohol" the model
+  // answered `collection_point` with `texto: null`, this guard was satisfied,
+  // and the search returned 20 collection points that had nothing to do with
+  // alcohol — while two records asking for exactly that sat further down.
+  //
+  // The question cannot become a filter here: none of the 13 seismic records
+  // contains "replicas" or "anoche", so filtering "hubo replicas anoche" would
+  // answer nothing. It becomes a ranking hint instead.
+  const narrows = resolved.categories.length > 0 || resolved.admin2Code !== null;
+  if (narrows) return resolved;
+  if (resolved.types.length > 0) return { ...resolved, rankBy: question };
+
+  // Nothing at all was extracted. Here the raw text must FILTER: with no
+  // filters, the search would return the whole catalog. Asked "cual es la
+  // capital de Francia" the honest answer is nothing, not 40 unrelated records.
+  return { ...resolved, q: question };
 }
 
 export type ResolveOptions = {
@@ -191,6 +212,7 @@ export async function resolveQuestion(
       admin2Name: municipality?.name ?? null,
       categories: deterministicCategories,
       q: cached.texto?.trim() || null,
+      rankBy: null,
       outOfScope: false,
       outOfScopeReason: null,
       guessed: !recognizedByCode && cached.tipos.length > 0,
@@ -267,6 +289,7 @@ export async function resolveQuestion(
       // not do that.
       categories: deterministicCategories,
       q: object.texto?.trim() || null,
+      rankBy: null,
       // Deterministic, nothing else. See the note about false positives.
       outOfScope: deterministicOutOfScope !== null,
       outOfScopeReason: deterministicOutOfScope,

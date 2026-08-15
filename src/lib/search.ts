@@ -17,6 +17,20 @@ import {
 
 export type SearchFilters = {
   q?: string | null;
+  /**
+   * Text that ORDERS the results without excluding any.
+   *
+   * Someone asked "donde necesitan alcohol" and got 20 arbitrary collection
+   * points: the model returned the type and no keywords, so the only
+   * meaningful word in the question was dropped. Two records did ask for
+   * alcohol and neither was near the top.
+   *
+   * It cannot filter. This text is synthesised by us, not extracted by the
+   * model, and "hubo replicas anoche" appears in none of the 13 seismic
+   * records — filtering by it would answer nothing. Ranking by it costs a
+   * person nothing and puts the right record first when there is one.
+   */
+  rankBy?: string | null;
   types?: readonly string[];
   admin2Code?: string | null;
   categories?: readonly string[];
@@ -143,6 +157,8 @@ export async function searchRecords(filters: SearchFilters): Promise<SearchResul
   const tsQuery = filters.q ? buildTextQuery(filters.q) : null;
   const folded = filters.q ? fold(filters.q) : null;
   const hasText = Boolean(tsQuery && folded);
+  // Only when there is no real text: a filter always outranks a hint.
+  const rankOnly = !hasText && filters.rankBy ? buildTextQuery(filters.rankBy) : null;
 
   const conditions = [sql`l.status <> 'withdrawn'`];
 
@@ -187,7 +203,9 @@ export async function searchRecords(filters: SearchFilters): Promise<SearchResul
   }
 
   const rank = !hasText
-    ? sql`0`
+    ? rankOnly
+      ? sql`ts_rank(to_tsvector('spanish', l.search_text), websearch_to_tsquery('spanish', ${rankOnly}))`
+      : sql`0`
     : useTrigram
       ? sql`GREATEST(
           ts_rank(to_tsvector('spanish', l.search_text), websearch_to_tsquery('spanish', ${tsQuery})),
