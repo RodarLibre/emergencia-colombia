@@ -106,9 +106,10 @@ To enable the natural-language box, set `DO_GRADIENT_API_KEY` and
 | [docs/USING-THE-BOT.md](docs/USING-THE-BOT.md) | What to ask, how to read a result, what it will not answer |
 | [docs/ADDING-A-SOURCE.md](docs/ADDING-A-SOURCE.md) | The most valuable contribution: connecting one more source |
 | [docs/VOCABULARIO.md](docs/VOCABULARIO.md) | **Contributing without writing code**: the words the search understands |
-| [docs/DEPLOY-PROXMOX.md](docs/DEPLOY-PROXMOX.md) | Deploying to a Proxmox LXC with Kamal, including the nesting requirement |
+| [docs/DEPLOY.md](docs/DEPLOY.md) | Deploying with Kamal: secrets, the schema step, and the crons that live on the host |
 | [docs/DOMINIO-CLOUDFLARE.md](docs/DOMINIO-CLOUDFLARE.md) | Domain and Cloudflare Tunnel, and what stays off the public internet |
 | [docs/MUDANZA-DE-HOST.md](docs/MUDANZA-DE-HOST.md) | Moving the deployment to another host without touching DNS |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to propose a change: branch, pull request, and what never gets committed |
 | [CONVENTIONS.md](CONVENTIONS.md) | Language rule, comment style, how to run the tests |
 | [AGENTS.md](AGENTS.md) | Orientation for AI agents: the ten invariants, and where the traps are |
 
@@ -527,6 +528,10 @@ kamal setup     # first time
 kamal deploy
 ```
 
+Step by step — secrets, the schema (which `kamal setup` does **not** create),
+the crons that live on the host, and why `db:push` must never touch a database
+that already has data — is [docs/DEPLOY.md](docs/DEPLOY.md).
+
 ### Vercel
 
 Works as is. Needs a Postgres reachable from the internet (Neon, Supabase — a
@@ -549,7 +554,7 @@ lines — `cali-ayuda` is disabled and deliberately absent.
 The URL below assumes `/api` is reachable by the caller, which is true on
 Vercel. **Behind the Cloudflare Tunnel it is not**: the middleware answers `404`
 to anything carrying `CF-Connecting-IP`, so the cron has to run on the host and
-reach the container directly. See `docs/DEPLOY-PROXMOX.md` and
+reach the container directly. See `docs/DEPLOY.md` and
 `docs/DOMINIO-CLOUDFLARE.md`.
 
 ```bash

@@ -1,6 +1,6 @@
 # Dominio y Cloudflare Tunnel
 
-`emergenciacolombia.org` → Cloudflare → túnel → el LXC en Proxmox.
+`emergenciacolombia.org` → Cloudflare → túnel → el servidor.
 
 El servidor **no tiene IP pública** y no hace falta que la tenga: `cloudflared`
 abre una conexión *saliente* hacia Cloudflare y el tráfico entra por ahí. No se
@@ -24,7 +24,7 @@ la otra, y ese día el sitio no debe quedar expuesto.
 Los llamadores internos —el healthcheck del contenedor, kamal-proxy, el cron de
 la máquina— no pasan por Cloudflare, así que siguen funcionando.
 
-## 1. Instalar cloudflared en el LXC
+## 1. Instalar cloudflared en el servidor
 
 ```bash
 ssh root@$DEPLOY_HOST
