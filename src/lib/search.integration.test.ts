@@ -271,3 +271,75 @@ describe("orden por relevancia", () => {
     expect(posCoincide).toBeLessThan(posParecido);
   });
 });
+
+/**
+ * Un albergue cerrado no puede encabezar la lista.
+ *
+ * Preguntando por albergues en Cali salían primero los dos que ya no recibían
+ * —uno CERRADO y uno ATENDIDO— y después los cinco abiertos. El estado no
+ * entraba en el orden: solo relevancia, completitud y fecha. Quien decide dónde
+ * dormir esta noche leía "CERRADO" arriba de todo.
+ *
+ * No se ocultan: siguen en los resultados, al final.
+ */
+describe("orden por estado", () => {
+  it("los abiertos van antes que los cerrados y los ya atendidos", async () => {
+    sourceId = await makeEnabledSource("orden-estado");
+    const cerrado = await makeSourceRecord(sourceId, "cerrado");
+    const atendido = await makeSourceRecord(sourceId, "atendido");
+    const abierto = await makeSourceRecord(sourceId, "abierto");
+
+    const comun = {
+      recordType: "shelter" as const,
+      categoryCodes: [],
+      admin2Code: "76001",
+      admin2Name: "Cali",
+      locationPrecision: "unknown" as const,
+      verificationLevel: "unknown" as const,
+      searchText: "albergue de prueba",
+    };
+
+    await db.insert(observations).values([
+      {
+        // El cerrado, con TODO a favor: dirección, horario y observado después.
+        // Antes ganaba por eso.
+        ...comun,
+        sourceRecordId: cerrado,
+        status: "closed",
+        title: "Albergue cerrado",
+        displayAddress: "Calle 1 #1-1",
+        openingHours: "8am a 6pm",
+        observedAt: new Date(),
+        contentHash: "sha256:cerrado",
+      },
+      {
+        ...comun,
+        sourceRecordId: atendido,
+        status: "fulfilled",
+        title: "Albergue atendido",
+        displayAddress: "Calle 2 #2-2",
+        openingHours: "8am a 6pm",
+        observedAt: new Date(),
+        contentHash: "sha256:atendido",
+      },
+      {
+        // El abierto, con menos datos y más viejo.
+        ...comun,
+        sourceRecordId: abierto,
+        status: "active",
+        title: "Albergue abierto",
+        observedAt: new Date(Date.now() - 60 * 60_000),
+        contentHash: "sha256:abierto",
+      },
+    ]);
+
+    const results = await searchRecords({ types: ["shelter"], admin2Code: "76001", limit: 20 });
+    const pos = (id: number) => results.findIndex((r) => r.sourceRecordId === id);
+
+    expect(pos(abierto)).toBeGreaterThanOrEqual(0);
+    expect(pos(abierto)).toBeLessThan(pos(atendido));
+    expect(pos(atendido)).toBeLessThan(pos(cerrado));
+    // Y ninguno desaparece.
+    expect(pos(cerrado)).toBeGreaterThanOrEqual(0);
+  });
+});

@@ -58,7 +58,12 @@ function actionability(r: SearchResult): number {
   // A record its own source stopped publishing is never the one to lead with,
   // however complete it looks. It stays in the results — absence is not proof
   // it closed — but it does not get held up as the answer.
-  if (r.noLongerListed) return -1;
+  if (r.noLongerListed) return -3;
+  // Same reasoning for a place that closed or already got what it needed: it
+  // is an answer, not the one to send someone to. Kept below every open place
+  // so the highlighted card agrees with the order of the list.
+  if (r.status === "closed") return -2;
+  if (r.status === "fulfilled") return -1;
   return (r.displayAddress ? 2 : 0) + (r.admin2Name ? 1 : 0) + (r.openingHours ? 1 : 0);
 }
 

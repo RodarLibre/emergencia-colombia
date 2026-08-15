@@ -280,6 +280,18 @@ export async function searchRecords(filters: SearchFilters): Promise<SearchResul
     -- municipality and an address is actionable; one with only a
     -- neighborhood forces a visit to the source.
     ORDER BY
+      -- Whether you can still go there outranks everything, including how well
+      -- the text matches. Asked for shelters in Cali, the two that were closed
+      -- and already covered came first and five open ones came after: the
+      -- person deciding where to sleep read "CERRADO" at the top of the list.
+      -- Nothing is hidden — a closed shelter is still an answer, and absence is
+      -- not proof it reopened — but it goes last.
+      CASE
+        WHEN (l.last_seen_at < l.source_last_read - INTERVAL '5 minutes') THEN 3
+        WHEN l.status = 'closed' THEN 2
+        WHEN l.status = 'fulfilled' THEN 1
+        ELSE 0
+      END ASC,
       rank DESC,
       (
         (CASE WHEN l.admin2_code IS NOT NULL THEN 1 ELSE 0 END) +
