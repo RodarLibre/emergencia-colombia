@@ -16,6 +16,18 @@ import { RETENTION_DAYS } from "@/lib/feedback";
  * that quietly stops being true is worse than no notice.
  */
 
+/**
+ * Rendered per request, like every other page here.
+ *
+ * Not because this page has anything dynamic on it — it does not — but because
+ * the root layout reads the catalog to draw the source count and the integrity
+ * wall. Prerendering this page at build time renders that layout too, so the
+ * build opens a database connection, and the build machine has none: the deploy
+ * fails at `pnpm build` inside Docker with ECONNREFUSED, while passing on any
+ * laptop that happens to have Postgres up.
+ */
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Privacidad",
   description: "Qué datos guardamos, por cuánto tiempo y cómo pedir que los borremos.",

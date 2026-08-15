@@ -14,6 +14,18 @@ import type { Metadata } from "next";
  * one place instead of inferring it from a timestamp.
  */
 
+/**
+ * Rendered per request, like every other page here.
+ *
+ * Not because this page has anything dynamic on it — it does not — but because
+ * the root layout reads the catalog to draw the source count and the integrity
+ * wall. Prerendering this page at build time renders that layout too, so the
+ * build opens a database connection, and the build machine has none: the deploy
+ * fails at `pnpm build` inside Docker with ECONNREFUSED, while passing on any
+ * laptop that happens to have Postgres up.
+ */
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Términos de uso",
   description: "Qué es esta información, de dónde sale y hasta dónde llega.",
