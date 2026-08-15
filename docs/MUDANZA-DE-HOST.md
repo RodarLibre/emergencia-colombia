@@ -117,10 +117,24 @@ done
 # esperado: 200  200  404  404
 ```
 
-## 5. Reponer el cron de ingesta
+## 5. Reponer los cron
 
-Se perdió en la máquina anterior y sin él el catálogo no se actualiza, que es
-la única cosa que hace útil al sitio.
+Viven en el servidor, no en el repositorio, así que una mudanza se los lleva.
+
+El de **ingesta** es el importante: sin él el catálogo no se actualiza, que es
+lo único que hace útil al sitio. Se perdió en la máquina anterior.
+
+El de **reporte de consumo** es `/etc/cron.d/ayuda-reporte`, y llama a
+`/usr/local/bin/ayuda-reporte`, que saca el secreto del propio contenedor para
+no guardarlo en dos sitios:
+
+```
+0 2 * * * root /usr/local/bin/ayuda-reporte
+```
+
+Las 02:00 UTC son las 21:00 en Bogotá, y la hora importa: los totales se
+agregan por día de Bogotá, así que un reporte de la mañana diría "hoy: casi
+nada". Sin `DISCORD_WEBHOOK_URL` no envía nada y tampoco falla.
 
 ## Notas sobre `cloudflared` en redes con problemas
 
