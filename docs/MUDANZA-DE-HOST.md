@@ -11,25 +11,20 @@ Esto es lo único irrecuperable. El catálogo se puede volver a ingerir de las
 fuentes, pero el **historial de observaciones no**: es el registro de qué dijo
 cada fuente y cuándo, y es la razón de ser del proyecto (invariante 2).
 
-Desde la consola del host Proxmox, si no hay SSH:
+Con SSH al host viejo:
 
 ```bash
-pct list                      # localizar el contenedor
-pct enter <ID>
-docker exec ayuda-terremoto-db pg_dump -U ayuda -Fc ayuda > /tmp/ayuda.dump
+ssh root@$VIEJO 'docker exec ayuda-terremoto-db pg_dump -U ayuda -Fc ayuda > /root/ayuda.dump'
+scp root@$VIEJO:/root/ayuda.dump .
 ```
 
-Y sacarlo del contenedor al host:
-
-```bash
-pct pull <ID> /tmp/ayuda.dump /root/ayuda.dump
-```
-
-Guardalo fuera de esa máquina antes de seguir.
+Guardalo fuera de esa máquina antes de seguir. Si ya perdiste el acceso por
+SSH, esto es lo que no vas a poder recuperar: sacá el volcado **ahora**, no
+cuando haga falta mudarse.
 
 ## 1. Preparar el host nuevo
 
-Un LXC Debian con Docker. Después:
+Una máquina Debian con Docker. Después:
 
 ```bash
 tailscale up          # para tener acceso

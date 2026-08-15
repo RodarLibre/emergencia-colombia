@@ -60,7 +60,7 @@ builder:
   # Built on the server rather than locally. The server is x86_64 and the
   # development Mac is arm64, so a local build would run the whole Next.js
   # compile under QEMU emulation — slow, and prone to running out of memory.
-  # The LXC builds it natively.
+  # The host builds it natively.
   remote: ssh://root@<%= ENV.fetch("DEPLOY_HOST") %>
 
 env:
