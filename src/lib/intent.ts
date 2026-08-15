@@ -134,6 +134,26 @@ function fallbackQuery(question: string): ResolvedQuery {
 }
 
 /**
+ * Categories that a record type already implies.
+ *
+ * "Albergues en Cali" resolves to the type `shelter` AND the category
+ * `shelter`, and both were required at once. Four of the five open shelters in
+ * Cali did not carry the category — a source that files a record as a shelter
+ * rarely tags it "alojamiento" as well — so they were filtered out and the
+ * answer was made of the ones that were closed. Requiring both can only remove
+ * records the type already guarantees.
+ */
+const CATEGORY_IMPLIED_BY_TYPE: Record<string, string> = { shelter: "shelter" };
+
+function dropRedundantCategories(resolved: ResolvedQuery): ResolvedQuery {
+  const categories = resolved.categories.filter((c) => {
+    const impliedBy = CATEGORY_IMPLIED_BY_TYPE[c];
+    return !impliedBy || !resolved.types.includes(impliedBy);
+  });
+  return categories.length === resolved.categories.length ? resolved : { ...resolved, categories };
+}
+
+/**
  * Guarantees the question always leaves at least one filter behind.
  *
  * With no filters at all, `searchRecords` has nothing to narrow by and returns
@@ -218,7 +238,7 @@ export async function resolveQuestion(
       guessed: !recognizedByCode && cached.tipos.length > 0,
       interpretedBy: "cache",
     };
-    return withFallbackText(fromCache, trimmed);
+    return withFallbackText(dropRedundantCategories(fromCache), trimmed);
   }
 
   if (!isAiEnabled() || options.allowInference === false) {
@@ -296,7 +316,7 @@ export async function resolveQuestion(
       guessed: !recognizedByCode && object.tipos.length > 0,
       interpretedBy: "model",
     };
-    return withFallbackText(fromModel, trimmed);
+    return withFallbackText(dropRedundantCategories(fromModel), trimmed);
   } catch {
     // Neither the question text nor the provider error is logged: it could
     // contain names, phone numbers, or health data (plan 14.5).

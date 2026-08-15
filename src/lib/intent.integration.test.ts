@@ -59,3 +59,47 @@ describe("resolveQuestion — a provider failure degrades to the same determinis
     expect(result.categories).toContain("water");
   });
 });
+
+/**
+ * "Albergues en Cali" pedía tipo `shelter` Y categoría `shelter` a la vez.
+ *
+ * Cuatro de los cinco albergues abiertos de Cali no llevan la categoría —quien
+ * registra un albergue no suele etiquetarlo además como "alojamiento"— así que
+ * quedaban fuera, y la respuesta terminaba armada con los que estaban cerrados.
+ */
+describe("categoría implícita en el tipo", () => {
+  it("no exige la categoría alojamiento cuando ya se pidió el tipo albergue", async () => {
+    generateObjectMock.mockResolvedValue({
+      object: { tipos: ["shelter"], municipio: "Cali", categorias: [], texto: null },
+    });
+
+    const { resolveQuestion } = await import("./intent");
+    const query = await resolveQuestion(`albergues en Cali ${Math.random()}`);
+
+    expect(query.types).toContain("shelter");
+    expect(query.categories).not.toContain("shelter");
+  });
+
+  it("mantiene las categorías que el tipo no implica", async () => {
+    generateObjectMock.mockResolvedValue({
+      object: { tipos: ["shelter"], municipio: "Cali", categorias: [], texto: null },
+    });
+
+    const { resolveQuestion } = await import("./intent");
+    const query = await resolveQuestion(`albergues con agua en Cali ${Math.random()}`);
+
+    expect(query.categories).toContain("water");
+    expect(query.categories).not.toContain("shelter");
+  });
+
+  it("la mantiene cuando no se pidió el tipo: ahí sí es el único filtro", async () => {
+    generateObjectMock.mockResolvedValue({
+      object: { tipos: ["service_point"], municipio: "Cali", categorias: [], texto: null },
+    });
+
+    const { resolveQuestion } = await import("./intent");
+    const query = await resolveQuestion(`donde puedo dormir en Cali ${Math.random()}`);
+
+    expect(query.categories).toContain("shelter");
+  });
+});
