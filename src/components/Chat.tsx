@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 
-import { ask, getStats, type AppliedFilters } from "@/app/actions";
+import {
+  ask,
+  getStats,
+  rateAnswer,
+  type AppliedFilters,
+  type FeedbackHandle,
+  type FeedbackReason,
+} from "@/app/actions";
 import { ResultCard } from "@/components/ResultCard";
 import type { Answer, AnswerNote } from "@/lib/answer";
 import { relativeTime } from "@/lib/format";
@@ -54,7 +61,13 @@ const PENDIENTE = "ayuda:pregunta-pendiente";
 
 type View =
   | { kind: "home" }
-  | { kind: "answer"; question: string; answer: Answer; filters: AppliedFilters }
+  | {
+      kind: "answer";
+      question: string;
+      answer: Answer;
+      filters: AppliedFilters;
+      feedback: FeedbackHandle | null;
+    }
   | { kind: "scope"; question: string; reason: OutOfScopeReason }
   | { kind: "coverage"; question: string; municipality: string; department: string }
   | { kind: "error" };
@@ -168,7 +181,13 @@ export function Chat() {
                 municipality: result.municipality,
                 department: result.department,
               }
-            : { kind: "answer", question: text, answer: result.answer, filters: result.filters },
+            : {
+                kind: "answer",
+                question: text,
+                answer: result.answer,
+                filters: result.filters,
+                feedback: result.feedback,
+              },
       );
     });
   }
@@ -203,6 +222,7 @@ export function Chat() {
             question={view.question}
             answer={view.answer}
             filters={view.filters}
+            feedback={view.feedback}
             onPick={run}
           />
         )}
@@ -778,11 +798,13 @@ function AnswerView({
   question,
   answer,
   filters,
+  feedback,
   onPick,
 }: {
   question: string;
   answer: Answer;
   filters: AppliedFilters;
+  feedback: FeedbackHandle | null;
   onPick: (question: string) => void;
 }) {
   // Los gemelos entran al calculo aunque no se dibujen: son justamente los
@@ -818,6 +840,33 @@ function AnswerView({
 
       {isOffTopic ? <OffTopicHelp onPick={onPick} /> : null}
 
+      {/*
+        Above the cards, not below them.
+
+        At the bottom nobody reached it: on a phone, after twenty shelter
+        listings, the only people who ever saw it were the ones patient enough
+        to scroll past what they came for — the opposite of the people whose
+        answer failed. Here the person has read what we understood and what we
+        are claiming, and has not scrolled yet.
+
+        Not higher, though. Above the answer sentence it would ask "did this
+        help?" before anything had been shown, and two of the chips —
+        `ya_cerro`, `desactualizado` — are judgements about the records, which
+        nobody can make before seeing one.
+
+        After the empty-results block on purpose: when there is nothing to
+        show, "probá con esto otro" is more use than a rating, so the recovery
+        actions come first.
+
+        Keyed on the turn so a new answer gets a new component. Today the
+        loading state already unmounts this — `pending` swaps in <Loading/> —
+        so the reset is incidental. Consent is not something to leave resting
+        on an incidental: without the key, a change that kept the answer on
+        screen while searching would carry a tick given for one question onto
+        the text of the next.
+      */}
+      {feedback ? <Feedback key={feedback.turnId} handle={feedback} question={question} /> : null}
+
       {answer.results.length > 0 ? (
         <div className="flex flex-col gap-3">
           {answer.results.map((r) => {
@@ -835,6 +884,213 @@ function AnswerView({
           })}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** Chips, in the order they are offered. Fixed list: no free text, so nothing to consent to. */
+const REASON_LABELS: Record<FeedbackReason, string> = {
+  no_entendio: "No entendió lo que pedí",
+  otra_ciudad: "Me mostró otra ciudad",
+  ya_cerro: "El lugar ya cerró",
+  desactualizado: "La información está vieja",
+  palabra: "No entendió una palabra que usé",
+};
+
+/**
+ * Was this useful?
+ *
+ * Deliberately dumb: no parsing, no derived state, nothing that can throw. It
+ * renders above the results and inside the same component, so anything that
+ * broke here would unmount the shelter list with it — and somebody looking for
+ * a shelter must never lose it because a feedback button had a bug.
+ *
+ * The thumb is sent the moment it is pressed. The panel that follows a
+ * thumbs-down updates that same row, so a person who never finishes it is
+ * still counted. Sending is fire-and-forget: `rateAnswer` swallows its own
+ * failures and there is nothing useful to tell someone if it did not land.
+ *
+ * `caso` is the only handle a person has on their own row — there are no
+ * accounts here — so it stays on screen after voting, which is when it starts
+ * to matter.
+ */
+function Feedback({ handle, question }: { handle: FeedbackHandle; question: string }) {
+  const [rating, setRating] = useState<"up" | "down" | null>(null);
+  const [reasons, setReasons] = useState<FeedbackReason[]>([]);
+  const [consented, setConsented] = useState(false);
+  const [comment, setComment] = useState("");
+  const [done, setDone] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+
+  // Pressing a button unmounts the button, so focus falls to <body> and the
+  // next Tab restarts at the top of the page. That cost nothing while this sat
+  // at the end; now the results come after it, and a keyboard user would have
+  // to walk the header and this whole block again to reach the cards they came
+  // for. Focus moves to the block instead, which is where the next thing to
+  // read just appeared.
+  useEffect(() => {
+    if (rating !== null) box.current?.focus();
+  }, [rating, done]);
+
+  function send(next: {
+    rating: "up" | "down";
+    reasons?: FeedbackReason[];
+    consented?: boolean;
+    comment?: string;
+    /** Only the panel revises what the thumb already wrote. */
+    detail?: boolean;
+  }) {
+    // Offline, a 429 during a flood, or a build id that changed under an open
+    // tab all reject here. `rateAnswer` swallows its own database failures, but
+    // it cannot swallow never having been reached.
+    void rateAnswer({
+      turnId: handle.turnId,
+      context: handle.context,
+      rating: next.rating,
+      reasons: next.reasons,
+      consented: next.consented,
+      // Only sent when the box is ticked. With it unticked the server would
+      // drop these anyway, but there is no reason to put them on the wire.
+      questionText: next.consented ? question : undefined,
+      comment: next.consented ? next.comment : undefined,
+      detail: next.detail,
+    }).catch(() => {});
+  }
+
+  function vote(value: "up" | "down") {
+    setRating(value);
+    send({ rating: value });
+    if (value === "up") setDone(true);
+  }
+
+  function toggle(reason: FeedbackReason) {
+    setReasons((current) =>
+      current.includes(reason) ? current.filter((r) => r !== reason) : [...current, reason],
+    );
+  }
+
+  return (
+    // The rule is at the BOTTOM. A top rule would open a section whose visible
+    // contents ran on into the whole shelter list, and the case code would sit
+    // flush above the first card — reading as a label for that card, which is
+    // the one string somebody is meant to quote about a specific record. A
+    // bottom rule closes the block off from the results instead, and avoids
+    // doubling up with `OffTopicHelp`, which ends in a rule of its own and can
+    // render immediately above this.
+    <div
+      ref={box}
+      tabIndex={-1}
+      aria-live="polite"
+      className="border-rule mb-1 flex flex-col gap-2 border-b pb-3 outline-none"
+    >
+      {rating === null ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="stamp text-muted">¿Te sirvió?</span>
+          <button
+            type="button"
+            onClick={() => vote("up")}
+            className="border-border hover:border-accent hover:text-accent border px-3 py-1 text-[0.85rem]"
+          >
+            Sí
+          </button>
+          <button
+            type="button"
+            onClick={() => vote("down")}
+            className="border-border hover:border-accent hover:text-accent border px-3 py-1 text-[0.85rem]"
+          >
+            No
+          </button>
+          {/*
+            Shown before anybody votes, not only after. It is the only handle a
+            person has on this answer — there are no accounts — so somebody who
+            wants to report a bad result without voting, or who comes back a day
+            later, still has something to quote. FR5.
+          */}
+          <span className="stamp text-muted">Caso {handle.caso}</span>
+        </div>
+      ) : done ? (
+        <p className="stamp text-muted">Gracias. Caso {handle.caso}.</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <p className="stamp text-muted">
+            Gracias. Si querés, contanos qué pasó — todo es opcional.
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            {(Object.keys(REASON_LABELS) as FeedbackReason[]).map((reason) => (
+              <button
+                key={reason}
+                type="button"
+                aria-pressed={reasons.includes(reason)}
+                onClick={() => toggle(reason)}
+                className={
+                  reasons.includes(reason)
+                    ? "border-accent text-accent border px-3 py-1 text-[0.85rem]"
+                    : "border-border hover:border-accent border px-3 py-1 text-[0.85rem]"
+                }
+              >
+                {REASON_LABELS[reason]}
+              </button>
+            ))}
+          </div>
+
+          {handle.textCapture ? (
+            <>
+              <label className="flex items-start gap-2 text-[0.85rem] leading-snug">
+                <input
+                  type="checkbox"
+                  checked={consented}
+                  onChange={(e) => setConsented(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  Guardá mi pregunta y mi comentario para revisarlos. Se borran a los 30 días.{" "}
+                  <Link
+                    href="/privacidad"
+                    className="hover:text-accent underline underline-offset-2"
+                  >
+                    Cómo tratamos estos datos
+                  </Link>
+                  .
+                </span>
+              </label>
+
+              {consented ? (
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  maxLength={800}
+                  rows={3}
+                  placeholder="¿Qué esperabas encontrar?"
+                  className="border-border bg-surface w-full border p-2 text-[0.9rem]"
+                />
+              ) : null}
+            </>
+          ) : null}
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                send({ rating: "down", reasons, consented, comment, detail: true });
+                setDone(true);
+              }}
+              // Filled, while the chips and the thumbs stay outlined: this is
+              // the only button here that ends the interaction, and it was
+              // reading as one more chip. Same treatment as the search submit
+              // (`bg-accent text-bg`), so the two primary actions on the screen
+              // look like the same kind of thing.
+              //
+              // Measured, not assumed: 6.4:1 on the light theme and 10.1:1 on
+              // the dark one, both past WCAG AA for normal text.
+              className="bg-accent text-bg border-accent border px-4 py-1 text-[0.85rem] font-semibold"
+            >
+              Enviar
+            </button>
+            <span className="stamp text-muted">Caso {handle.caso}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

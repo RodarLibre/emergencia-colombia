@@ -530,7 +530,8 @@ kamal deploy
 ### Vercel
 
 Works as is. Needs a Postgres reachable from the internet (Neon, Supabase — a
-homelab behind Tailscale is not), `pnpm db:push` plus `src/db/indexes.sql` once,
+homelab behind Tailscale is not), `pnpm db:push` plus `src/db/indexes.sql` and
+`src/db/answer-feedback.sql` once,
 and Vercel Cron calling `/api/ingest`.
 
 ### Scheduled ingestion
@@ -575,6 +576,59 @@ schedule before the webhook exists.
 ```bash
 0 * * * * curl -fsS -X POST "https://DOMAIN/api/reporte-uso" -H "Authorization: Bearer $INGEST_SECRET"
 ```
+
+### Answer feedback
+
+Under every answer: *¿Te sirvió?*, two buttons, and a case code. A thumbs-down
+opens an inline panel — never a dialog — with fixed reason chips.
+
+**Nothing anybody types is stored by default.** Ratings, reason chips and
+machine-generated context are; the question text and the free comment are not,
+unless `FEEDBACK_TEXT=on` **and** the person ticks the consent box **and** it is
+a thumbs-down. All three, every time. With the flag off, no personal data is
+processed at all — which is the point: the obligations that come with holding it
+(privacy notice, consent, deletion rights, a channel that answers) do not attach
+until somebody decides to turn it on. `src/db/schema.ts` already ran this
+calculation once for IP addresses and declined it.
+
+**Before turning it on:** `/privacidad` and the contact address on `/terminos`
+are in place. What is left is not code — somebody has to actually read
+`hola@rodarlibre.co` for deletion requests, and `INGEST_SECRET` should be split
+so the route that reads personal data is not guarded by the credential sitting
+in the host crontab.
+
+The case code under each answer is the only handle a person has on their own
+row — there are no accounts. It is how a bad answer gets reported without
+sending us the question, and how a deletion request identifies what to delete.
+
+```bash
+curl -s        ".../api/feedback"              -H "Authorization: Bearer $INGEST_SECRET" | jq
+curl -X DELETE ".../api/feedback?caso=7F3A21B4" -H "Authorization: Bearer $INGEST_SECRET"
+```
+
+Two rows can share a case code — it is 8 hex characters of the uuid — so the
+delete refuses with `409` and lists the candidates rather than guessing. Repeat
+with `?id=` to pick one.
+
+**The table is not created by `pnpm db:push`.** Apply it once, explicitly:
+
+```bash
+psql "$DATABASE_URL" -f src/db/answer-feedback.sql
+```
+
+`push` diffs the whole schema against the live database. For a new table it
+emits a clean `CREATE`, but if production has drifted at all it also proposes
+changes to `observations` and `source_records` — the catalog. The `.sql` file is
+one idempotent statement you can read before it runs. `src/db/schema.ts` still
+owns the definition; the two have to say the same thing.
+
+**Retention has no cron of its own.** The hourly spend report below also clears
+`question_text` and `comment` on rows older than `RETENTION_DAYS`, so there is
+one schedule to know about instead of two. Its response carries `purged` and
+`purgeFailed` — without that second field, "nothing expired" and "the sweep has
+been broken for six weeks" look identical, and the second one means consented
+text is outliving what the checkbox promised. With `FEEDBACK_TEXT` off there is
+nothing to clear and the sweep is a no-op.
 
 `AI_BUDGET_USD` turns the report into a runway estimate; the token prices it
 costs against are `AI_PRICE_INPUT_USD_PER_MILLION` and
@@ -660,7 +714,7 @@ src/
 ├── app/            routes (/, /fuentes, /r/[id], /salud,
 │                   /api/ingest, /api/reporte-uso) + actions.ts
 ├── components/     Chat, ResultCard, DataIntegrityBlock, Nav, ThemeToggle, ui/
-├── db/             drizzle schema, client, indexes.sql  ← sole schema owner
+├── db/             drizzle schema, client, *.sql            ← sole schema owner
 ├── ingest/
 │   ├── adapters/   one file per source
 │   ├── registry.ts adapter registry, shared by CLI and cron route

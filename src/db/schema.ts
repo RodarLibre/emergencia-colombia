@@ -289,6 +289,45 @@ export const blockedSubjects = pgTable(
   (t) => [index("blocked_subjects_expires_idx").on(t.expiresAt)],
 );
 
+/**
+ * What someone thought of an answer.
+ *
+ * `turnId` is signed (`lib/feedback.ts`), so a row can only exist for an answer
+ * this server actually produced. It is also the whole identity: one turn is
+ * issued to one person for one answer, so UNIQUE on it alone gives one vote per
+ * answer without storing anything about who voted. There is no client key here
+ * on purpose — it would be a second identifier that buys nothing.
+ *
+ * The reply itself is not stored. `composeAnswer` builds prose from records, so
+ * the filters and the record ids in `context` reconstruct what was on screen,
+ * and they do it without freezing text that the catalog has since moved on from.
+ *
+ * `questionText` and `comment` are the only personal data here, and both stay
+ * null unless FEEDBACK_TEXT is on AND the person ticked the box AND it was a
+ * thumbs-down. `consentVersion` records which wording they agreed to. Text
+ * expires — see RETENTION_DAYS — while the row it came from stays, because the
+ * counts are what the rates are made of and they are nobody's data.
+ */
+export const answerFeedback = pgTable(
+  "answer_feedback",
+  {
+    id: serial("id").primaryKey(),
+    /** `<uuid>.<hmac>`. Unique, so a second vote on the same answer is dropped. */
+    turnId: text("turn_id").notNull().unique(),
+    /** up | down */
+    rating: text("rating").notNull(),
+    /** Chips from a fixed list. No free text, so these are always safe to keep. */
+    reasons: text("reasons").array().notNull().default([]),
+    /** filters, interpretedBy, promptVersion, notes, resultIds. */
+    context: jsonb("context").notNull(),
+    questionText: text("question_text"),
+    comment: text("comment"),
+    consentVersion: text("consent_version"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("answer_feedback_created_idx").on(t.createdAt)],
+);
+
 // --- Relations ----------------------------------------------------------
 
 export const sourcesRelations = relations(sources, ({ many }) => ({

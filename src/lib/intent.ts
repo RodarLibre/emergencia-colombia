@@ -103,7 +103,7 @@ Reglas:
  * category automatically invalidates the cache. An old interpretation paired
  * with a new vocabulary would return filters that no longer exist.
  */
-const PROMPT_VERSION = createHash("sha256")
+export const PROMPT_VERSION = createHash("sha256")
   .update(`${SYSTEM_PROMPT}|${RECORD_TYPES_V1.join(",")}|${CATEGORIES.join(",")}`)
   .digest("hex")
   .slice(0, 12);
