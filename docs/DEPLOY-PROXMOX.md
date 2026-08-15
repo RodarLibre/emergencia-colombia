@@ -163,24 +163,48 @@ reason is in the container logs.
 
 ## 7. First ingest and the cron
 
+**One line per connected source, and `mapa-emergencia` is the big one.** It
+contributes roughly 780 of the ~900 records; leave it out and the site comes up
+looking like it works, with an eighth of the catalog. Nothing detects a missing
+cron line — the source just stops being reconfirmed and goes stale in silence.
+
+`cali-ayuda` is **disabled** and is not scheduled. Confirm the current set
+against `ADAPTERS` in `src/ingest/registry.ts` rather than trusting this list.
+
 ```bash
+curl -X POST "https://<domain>/api/ingest?fuente=mapa-emergencia"   -H "Authorization: Bearer $INGEST_SECRET"
 curl -X POST "https://<domain>/api/ingest?fuente=donde-ayudo-valle" -H "Authorization: Bearer $INGEST_SECRET"
-curl -X POST "https://<domain>/api/ingest?fuente=cali-ayuda"        -H "Authorization: Bearer $INGEST_SECRET"
 curl -X POST "https://<domain>/api/ingest?fuente=sgc-sismos"        -H "Authorization: Bearer $INGEST_SECRET"
 ```
+
+> **Check the response before trusting the schedule.** `/api/*` answers `404` to
+> any request that arrives carrying `CF-Connecting-IP`, i.e. through the tunnel
+> from the public internet (`src/middleware.ts`, and see
+> `DOMINIO-CLOUDFLARE.md`). If `<domain>` resolves out to Cloudflare and back,
+> these calls get a silent `404` and ingest never runs. A `200` means the path
+> is internal and the crontab below is fine; a `404` means the cron has to reach
+> the container directly on the host instead. `curl -fsS` fails loudly on 404,
+> which is why the `-f` is there.
 
 Then in the LXC's crontab:
 
 ```cron
+*/15 * * * * curl -fsS -X POST "https://<domain>/api/ingest?fuente=mapa-emergencia"   -H "Authorization: Bearer $INGEST_SECRET" >/dev/null
 */15 * * * * curl -fsS -X POST "https://<domain>/api/ingest?fuente=donde-ayudo-valle" -H "Authorization: Bearer $INGEST_SECRET" >/dev/null
-*/20 * * * * curl -fsS -X POST "https://<domain>/api/ingest?fuente=cali-ayuda"        -H "Authorization: Bearer $INGEST_SECRET" >/dev/null
 */10 * * * * curl -fsS -X POST "https://<domain>/api/ingest?fuente=sgc-sismos"        -H "Authorization: Bearer $INGEST_SECRET" >/dev/null
 ```
 
+The **inference spend report** is a second cron, hourly, described in
+`MUDANZA-DE-HOST.md` §5: `/etc/cron.d/ayuda-reporte` calling
+`/usr/local/bin/ayuda-reporte`, which pulls the secret out of the container so
+it is not stored in two places. It posts to `POST /api/reporte-uso`. Without
+`DISCORD_WEBHOOK_URL` set it sends nothing and does not fail, so it is safe to
+schedule before the webhook exists.
+
 ## 8. Secrets
 
-`.kamal/secrets` is gitignored and needs four values filled before the first
-deploy:
+`.kamal/secrets` is gitignored and needs these five values filled before the
+first deploy:
 
 ```
 POSTGRES_PASSWORD=     # generate
