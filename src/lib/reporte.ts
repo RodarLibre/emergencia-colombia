@@ -25,28 +25,69 @@ function color(r: ResumenDeUso): number {
 }
 
 export function construirReporte(r: ResumenDeUso, sitio: string) {
+  // Preguntas arriba, costo abajo. El numero que dice si esto le sirve a
+  // alguien es cuanta gente pregunto, no cuantas veces se llamo al modelo:
+  // mostrando solo lo segundo, el contador parecia congelado mientras el sitio
+  // se usaba, porque una pregunta repetida sale de la cache sin gastar nada.
   const campos = [
     {
       name: "Hoy",
-      value: `${miles(r.hoy.calls)} consultas\n${usd(r.hoy.usd)}`,
+      value:
+        `**${miles(r.hoy.preguntas.total)}** preguntas\n` +
+        `${miles(r.hoy.calls)} al modelo · ${usd(r.hoy.usd)}`,
       inline: true,
     },
     {
       name: "Últimos 7 días",
-      value: `${miles(r.ultimos7.calls)} consultas\n${usd(r.ultimos7.usd)}`,
+      value:
+        `**${miles(r.ultimos7.preguntas.total)}** preguntas\n` +
+        `${miles(r.ultimos7.calls)} al modelo · ${usd(r.ultimos7.usd)}`,
       inline: true,
     },
     {
       name: "Acumulado",
-      value: `${miles(r.total.calls)} consultas\n${usd(r.total.usd)}`,
+      value:
+        `**${miles(r.total.preguntas.total)}** preguntas\n` +
+        `${miles(r.total.calls)} al modelo · ${usd(r.total.usd)}`,
       inline: true,
     },
-    {
-      name: "Tokens acumulados",
-      value: `${miles(r.total.inputTokens)} entrada · ${miles(r.total.outputTokens)} salida`,
-      inline: false,
-    },
   ];
+
+  // Cuanto del dia se resolvio sin gastar: es lo que explica por que el costo
+  // no crece al mismo ritmo que el uso.
+  const ahorradas = r.hoy.preguntas.cached + r.hoy.preguntas.deterministic;
+  if (r.hoy.preguntas.total > 0) {
+    const pct = Math.round((ahorradas / r.hoy.preguntas.total) * 100);
+    campos.push({
+      name: "Sin gastar inferencia hoy",
+      value:
+        `${miles(ahorradas)} de ${miles(r.hoy.preguntas.total)} (${pct}%) · ` +
+        `${miles(r.hoy.preguntas.cached)} desde caché, ` +
+        `${miles(r.hoy.preguntas.deterministic)} sin modelo`,
+      inline: false,
+    });
+  }
+
+  // Lo que no pudimos responder. No es un fallo tecnico: es el mapa de lo que
+  // falta cubrir, y es el unico numero de aca que deberia bajar con trabajo.
+  const sinRespuesta =
+    r.hoy.preguntas.empty + r.hoy.preguntas.outOfCoverage + r.hoy.preguntas.outOfScope;
+  if (sinRespuesta > 0) {
+    campos.push({
+      name: "Se fueron sin resultados hoy",
+      value:
+        `${miles(r.hoy.preguntas.empty)} buscaron y no había nada · ` +
+        `${miles(r.hoy.preguntas.outOfCoverage)} de municipios sin cubrir · ` +
+        `${miles(r.hoy.preguntas.outOfScope)} derivadas a quien sí puede`,
+      inline: false,
+    });
+  }
+
+  campos.push({
+    name: "Tokens acumulados",
+    value: `${miles(r.total.inputTokens)} entrada · ${miles(r.total.outputTokens)} salida`,
+    inline: false,
+  });
 
   if (r.presupuestoUsd > 0) {
     const restante = Math.max(0, r.presupuestoUsd - r.total.usd);
@@ -74,7 +115,7 @@ export function construirReporte(r: ResumenDeUso, sitio: string) {
   return {
     embeds: [
       {
-        title: "Consumo de inferencia",
+        title: "Uso y consumo",
         url: sitio,
         color: color(r),
         fields: campos,

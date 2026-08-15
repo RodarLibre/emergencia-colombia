@@ -37,10 +37,48 @@ export function costoUsd(inputTokens: number, outputTokens: number): number {
   );
 }
 
+/**
+ * Preguntas atendidas, separadas por camino y desenlace.
+ *
+ * `calls` cuenta inferencia. Esto cuenta gente. Son numeros muy distintos: el
+ * bot responde muchisimo sin llamar al modelo, y mirar solo `calls` daba la
+ * impresion de que nadie estaba usando el sitio.
+ */
+export type Preguntas = {
+  total: number;
+  /** Reusaron una interpretacion anterior. No gastaron tokens. */
+  cached: number;
+  /** Resueltas sin modelo: sin cupo, sin proveedor, o el sitio saturado. */
+  deterministic: number;
+  outOfScope: number;
+  outOfCoverage: number;
+  /** Se busco y no habia nada: es lo que dice que falta cubrir. */
+  empty: number;
+};
+
 export type ResumenDeUso = {
-  hoy: { calls: number; inputTokens: number; outputTokens: number; failures: number; usd: number };
-  ultimos7: { calls: number; inputTokens: number; outputTokens: number; usd: number };
-  total: { calls: number; inputTokens: number; outputTokens: number; usd: number };
+  hoy: {
+    calls: number;
+    inputTokens: number;
+    outputTokens: number;
+    failures: number;
+    usd: number;
+    preguntas: Preguntas;
+  };
+  ultimos7: {
+    calls: number;
+    inputTokens: number;
+    outputTokens: number;
+    usd: number;
+    preguntas: Preguntas;
+  };
+  total: {
+    calls: number;
+    inputTokens: number;
+    outputTokens: number;
+    usd: number;
+    preguntas: Preguntas;
+  };
   /** Media de los últimos 7 días, para proyectar. */
   usdPorDia: number;
   presupuestoUsd: number;

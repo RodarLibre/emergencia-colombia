@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { costoUsd, type ResumenDeUso } from "./costo";
+import { costoUsd, type Preguntas, type ResumenDeUso } from "./costo";
 import { construirReporte } from "./reporte";
 
 /**
@@ -9,11 +9,43 @@ import { construirReporte } from "./reporte";
  * reporte no puede llevar nada de nadie.
  */
 
+function preguntas(overrides: Partial<Preguntas> = {}): Preguntas {
+  return {
+    total: 0,
+    cached: 0,
+    deterministic: 0,
+    outOfScope: 0,
+    outOfCoverage: 0,
+    empty: 0,
+    ...overrides,
+  };
+}
+
 function resumen(overrides: Partial<ResumenDeUso> = {}): ResumenDeUso {
   return {
-    hoy: { calls: 120, inputTokens: 60_000, outputTokens: 6_000, failures: 0, usd: 0.0042 },
-    ultimos7: { calls: 840, inputTokens: 420_000, outputTokens: 42_000, usd: 0.0294 },
-    total: { calls: 3_000, inputTokens: 1_500_000, outputTokens: 150_000, usd: 0.105 },
+    hoy: {
+      calls: 120,
+      inputTokens: 60_000,
+      outputTokens: 6_000,
+      failures: 0,
+      usd: 0.0042,
+      // Mas preguntas que llamadas: es lo normal, no un error de cuentas.
+      preguntas: preguntas({ total: 300, cached: 150, deterministic: 30, empty: 12 }),
+    },
+    ultimos7: {
+      calls: 840,
+      inputTokens: 420_000,
+      outputTokens: 42_000,
+      usd: 0.0294,
+      preguntas: preguntas({ total: 2_100, cached: 1_050 }),
+    },
+    total: {
+      calls: 3_000,
+      inputTokens: 1_500_000,
+      outputTokens: 150_000,
+      usd: 0.105,
+      preguntas: preguntas({ total: 7_500, cached: 4_000 }),
+    },
     usdPorDia: 0.0042,
     presupuestoUsd: 0,
     diasRestantes: null,
@@ -78,5 +110,49 @@ describe("fallos del proveedor", () => {
     // Un cero repetido cada día entrena a la gente a no leer el mensaje.
     const r = resumen({ hoy: { ...resumen().hoy, failures: 12 } });
     expect(JSON.stringify(construirReporte(r, "x"))).toContain("Fallos del proveedor");
+  });
+});
+
+/**
+ * El contador parecía congelado mientras el bot se usaba.
+ *
+ * `calls` solo cuenta llamadas al modelo, y la mayoría de las preguntas no
+ * llama al modelo: una repetida sale de la caché, una fuera de alcance se
+ * resuelve antes de gastar nada, y sin cupo se busca el texto tal cual. El
+ * reporte mostraba el número que menos se movía.
+ */
+describe("el reporte cuenta preguntas, no solo inferencia", () => {
+  it("muestra las preguntas antes que las llamadas al modelo", () => {
+    const reporte = construirReporte(resumen(), "https://ejemplo.org");
+    const hoy = reporte.embeds[0]!.fields.find((f) => f.name === "Hoy")!;
+
+    expect(hoy.value).toContain("300");
+    expect(hoy.value).toContain("preguntas");
+    // Y la llamada al modelo sigue estando, para explicar el costo.
+    expect(hoy.value).toContain("120");
+  });
+
+  it("dice cuánto se resolvió sin gastar", () => {
+    const reporte = construirReporte(resumen(), "https://ejemplo.org");
+    const campo = reporte.embeds[0]!.fields.find((f) => f.name.startsWith("Sin gastar"))!;
+
+    // 150 de caché + 30 sin modelo = 180 de 300.
+    expect(campo.value).toContain("180");
+    expect(campo.value).toContain("60%");
+  });
+
+  it("separa lo que se fue sin respuesta, que es lo que falta cubrir", () => {
+    const reporte = construirReporte(resumen(), "https://ejemplo.org");
+    const campo = reporte.embeds[0]!.fields.find((f) => f.name.startsWith("Se fueron"))!;
+
+    expect(campo.value).toContain("12");
+  });
+
+  it("no menciona lo que no pasó: sin preguntas perdidas, no hay campo", () => {
+    const limpio = resumen();
+    limpio.hoy.preguntas = preguntas({ total: 10, cached: 2 });
+    const reporte = construirReporte(limpio, "https://ejemplo.org");
+
+    expect(reporte.embeds[0]!.fields.some((f) => f.name.startsWith("Se fueron"))).toBe(false);
   });
 });

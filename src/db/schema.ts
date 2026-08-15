@@ -197,6 +197,28 @@ export const aiUsageDaily = pgTable("ai_usage_daily", {
   outputTokens: bigint("output_tokens", { mode: "number" }).notNull().default(0),
   /** Llamadas que fallaron. No gastan tokens pero si dicen que algo anda mal. */
   failures: integer("failures").notNull().default(0),
+
+  /**
+   * Preguntas atendidas, que NO es lo mismo que llamadas al modelo.
+   *
+   * `calls` solo contaba inferencia, y el bot responde muchisimo sin llamar al
+   * modelo: una pregunta repetida sale de la cache, una fuera de alcance se
+   * resuelve antes de gastar nada, y sin cupo se busca el texto tal cual. El
+   * numero parecia congelado mientras la gente usaba el sitio.
+   *
+   * Todo lo de abajo son totales por dia. Nunca se guarda una pregunta.
+   */
+  questions: integer("questions").notNull().default(0),
+  /** Interpretadas reusando una interpretacion anterior: no gastan tokens. */
+  cached: integer("cached").notNull().default(0),
+  /** Resueltas sin modelo: sin cupo, sin proveedor, o con el sitio saturado. */
+  deterministic: integer("deterministic").notNull().default(0),
+  /** Derivadas a quien si puede responder: 123, Cruz Roja, mascotas. */
+  outOfScope: integer("out_of_scope").notNull().default(0),
+  /** Un municipio que todavia no cubrimos. */
+  outOfCoverage: integer("out_of_coverage").notNull().default(0),
+  /** Se busco y no habia nada. Es la metrica que dice que nos falta cubrir. */
+  empty: integer("empty").notNull().default(0),
 });
 
 export const aiIntentCache = pgTable(

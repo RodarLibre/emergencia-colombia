@@ -9,6 +9,7 @@ import { findMunicipalityOutsideCoverage, hasDomainSignal } from "@/lib/normaliz
 import { CLIENT_IP_HEADER, FORWARDED_FOR_HEADER } from "@/lib/client-ip";
 import { clientKey, consumeAiQuota, networkKey } from "@/lib/ratelimit";
 import { type CatalogStats, getCatalogStats, searchWithFallback } from "@/lib/search";
+import { recordQuestion } from "@/lib/usage";
 import { LOAD_HEADER } from "@/middleware";
 
 /**
@@ -75,12 +76,19 @@ export async function ask(question: string): Promise<AskResult> {
 
   const query = await resolveQuestion(trimmed, { allowInference: quota.allowed });
 
-  if (query.outOfScopeReason) return { kind: "out_of_scope", reason: query.outOfScopeReason };
+  // Se cuenta CADA pregunta atendida, no solo las que llaman al modelo. Estas
+  // dos salen antes de gastar un token y aun asi son gente usando el sitio.
+  // Como todo lo demas: totales por dia, nunca el texto.
+  if (query.outOfScopeReason) {
+    void recordQuestion({ path: query.interpretedBy, outcome: "out_of_scope" });
+    return { kind: "out_of_scope", reason: query.outOfScopeReason };
+  }
 
   // Nombro un municipio que no cubrimos. Antes esa palabra se perdia y la
   // respuesta salia con lugares de otro departamento, sin avisar.
   const afuera = findMunicipalityOutsideCoverage(trimmed);
   if (afuera) {
+    void recordQuestion({ path: query.interpretedBy, outcome: "out_of_coverage" });
     return { kind: "out_of_coverage", municipality: afuera.name, department: afuera.deptName };
   }
 
@@ -102,6 +110,11 @@ export async function ask(question: string): Promise<AskResult> {
     // de registro, hay algo que buscar. Ver `guessed` en `intent.ts`.
     offTopic: !hasDomainSignal(trimmed) && query.types.length === 0,
     busy,
+  });
+
+  void recordQuestion({
+    path: query.interpretedBy,
+    outcome: answer.results.length > 0 ? "results" : "empty",
   });
 
   return {
