@@ -20,9 +20,14 @@ building their own tools and connecting beats converging.
 
 ## Current state
 
-**Live at https://emergenciacolombia.org**, serving **923 records** from three
-connected sources across **66 municipalities** of Valle del Cauca, Risaralda,
-Caldas and Quindío. Ingestion runs every 15 minutes.
+**Live at https://emergenciacolombia.org**, serving three connected sources
+across Valle del Cauca, Risaralda, Caldas and Quindío. Each source is ingested
+on its own schedule, every 10 to 20 minutes.
+
+Live counts are on [/fuentes](https://emergenciacolombia.org/fuentes), per
+source and always current. They are not repeated here: a number typed into a
+README is true on the day it is typed and silently wrong afterwards. As of
+2026-08-14 the catalog was around 900 records over 66 municipalities.
 
 Done:
 
@@ -83,9 +88,9 @@ docker compose --profile tools up -d    # + Adminer on :8080
 pnpm typecheck
 pnpm build
 pnpm db:reset                            # drops the volume and recreates
-pnpm lint && pnpm test                   # 90 unit tests
-pnpm test:integration                    # 16, needs Postgres
-pnpm ingest cali-ayuda                   # live
+pnpm lint && pnpm test                   # no database needed
+pnpm test:integration                    # needs Postgres
+pnpm ingest mapa-emergencia              # live
 pnpm ingest donde-ayudo-valle --fixture  # offline
 ```
 
@@ -104,8 +109,8 @@ To enable the natural-language box, set `DO_GRADIENT_API_KEY` and
 | [docs/DEPLOY-PROXMOX.md](docs/DEPLOY-PROXMOX.md) | Deploying to a Proxmox LXC with Kamal, including the nesting requirement |
 | [docs/DOMINIO-CLOUDFLARE.md](docs/DOMINIO-CLOUDFLARE.md) | Domain and Cloudflare Tunnel, and what stays off the public internet |
 | [docs/MUDANZA-DE-HOST.md](docs/MUDANZA-DE-HOST.md) | Moving the deployment to another host without touching DNS |
-| [CONVENTIONS.md](CONVENTIONS.md) | Language rule and the ten product invariants |
-| [AGENTS.md](AGENTS.md) | Orientation for AI agents, including where the traps are |
+| [CONVENTIONS.md](CONVENTIONS.md) | Language rule, comment style, how to run the tests |
+| [AGENTS.md](AGENTS.md) | Orientation for AI agents: the ten invariants, and where the traps are |
 
 ## The bot: the model translates the question, never the answer
 
@@ -164,6 +169,9 @@ is looking for when they do not use the vocabulary's words.
 ## Sources
 
 Verified 2026-08-12/14 by reading each `robots.txt` and one public page.
+
+Record counts below are the order of magnitude each source contributes, not a
+live figure — [/fuentes](https://emergenciacolombia.org/fuentes) has those.
 
 | Source | robots.txt | State | Detail |
 |---|---|---|---|
@@ -251,10 +259,15 @@ absence) but stop being reconfirmed and go stale with no explanation.
 3. **Soft quality ordering.** Among similarly relevant results, the one with
    municipality, address and hours comes first. Nothing is hidden.
 
+Measured against the committed fixtures, which is why these numbers are lower
+than the live ones in *Sources* above and will not move as the sources do:
+
 | Source | Records | Municipality | Address | Hours |
 |---|---|---|---|---|
 | Donde Ayudo Valle | 86 | 86 | 86 | 12 |
 | Cali Ayuda | 8 | 0 | 0 | 0 |
+
+The live equivalent, per source and always current, is on `/fuentes`.
 
 Cali Ayuda is also the most fragile parser in the repo (React RSC payload). If it
 breaks and fixing it is not worth it, disable the source and the site keeps
@@ -460,13 +473,22 @@ supports the whole country.
 ## Data scope: the line that needs no lawyer
 
 v1 ingests **institutional records only**: collection points, service points,
-shelters, official updates, hazards.
+shelters, official updates, hazards, seismic events. That list is
+`RECORD_TYPES_V1` in `src/lib/vocab.ts`, which is the authority.
 
 Individual needs with contact details, pets and people are out. That line is
 defensible without prior legal review — under Ley 1581 health data is sensitive
 and requires explicit consent — and it covers most of the value for people
 coordinating logistics. Individual records are handled by linking to the source,
 not copying them.
+
+**Contact details are the one exception, and only in one direction.** Since
+2026-08-14 a phone number is mirrored when the source collects authorization
+per person and declares it (`mirrorsContacts`, e.g. CORAG). It lives in the
+record's current state, never in the history, so a takedown at the source
+propagates on the next read. Scraping a number off a site that never consented
+is still forbidden, and no contact ever enters the indexed text — nobody should
+be findable *by* their phone number. See invariant 6 in `AGENTS.md`.
 
 `RECORD_TYPES_GATED` in `src/lib/vocab.ts` lists the types that need a privacy
 review and/or a source agreement before being enabled.
@@ -518,13 +540,46 @@ One source per call, to stay inside execution time limits. Without
 `INGEST_SECRET` configured the route returns 503: an unauthenticated ingestion
 endpoint is never exposed by accident.
 
+**One line per connected source.** A slug missing from the crontab is a source
+that never updates again, and nothing reports it: the site keeps serving that
+source's last observations, which go stale silently. Today that means three
+lines — `cali-ayuda` is disabled and deliberately absent.
+
+The URL below assumes `/api` is reachable by the caller, which is true on
+Vercel. **Behind the Cloudflare Tunnel it is not**: the middleware answers `404`
+to anything carrying `CF-Connecting-IP`, so the cron has to run on the host and
+reach the container directly. See `docs/DEPLOY-PROXMOX.md` and
+`docs/DOMINIO-CLOUDFLARE.md`.
+
 ```bash
+*/15 * * * * curl -fsS -X POST "https://DOMAIN/api/ingest?fuente=mapa-emergencia"   -H "Authorization: Bearer $INGEST_SECRET"
 */15 * * * * curl -fsS -X POST "https://DOMAIN/api/ingest?fuente=donde-ayudo-valle" -H "Authorization: Bearer $INGEST_SECRET"
-*/20 * * * * curl -fsS -X POST "https://DOMAIN/api/ingest?fuente=cali-ayuda"        -H "Authorization: Bearer $INGEST_SECRET"
+*/10 * * * * curl -fsS -X POST "https://DOMAIN/api/ingest?fuente=sgc-sismos"        -H "Authorization: Bearer $INGEST_SECRET"
 ```
 
 Codes: `200` ingested, `409` quarantined by count collapse (wrote nothing),
 `502` the parser found no records, `401` invalid secret.
+
+The authoritative list of slugs is `ADAPTERS` in `src/ingest/registry.ts`
+(`pnpm ingest` with no argument prints them). Adding a source means adding a
+cron line; there is nothing that will notice if you forget.
+
+### Inference spend report
+
+`POST /api/reporte-uso` with the same bearer secret posts a usage summary to
+Discord — today, the last 7 days, and the running total, aggregated by Bogotá
+day. Only daily totals are stored: no questions, no users. Without
+`DISCORD_WEBHOOK_URL` it sends nothing and does not fail, so it is safe to
+schedule before the webhook exists.
+
+```bash
+0 * * * * curl -fsS -X POST "https://DOMAIN/api/reporte-uso" -H "Authorization: Bearer $INGEST_SECRET"
+```
+
+`AI_BUDGET_USD` turns the report into a runway estimate; the token prices it
+costs against are `AI_PRICE_INPUT_USD_PER_MILLION` and
+`AI_PRICE_OUTPUT_USD_PER_MILLION`, which are not fetched from the provider — if
+they change and these do not, the reported cost lies.
 
 The CLI (`pnpm ingest`) uses the same logic, so scheduling does not depend on the
 platform.
@@ -598,10 +653,13 @@ merging, sources disabled by default.
 
 ## Structure
 
+Load-bearing files only. Tests sit next to what they test.
+
 ```
 src/
-├── app/            routes (/, /fuentes, /r/[id], /salud, /api/ingest)
-├── components/     ResultCard, DataIntegrityBlock
+├── app/            routes (/, /fuentes, /r/[id], /salud,
+│                   /api/ingest, /api/reporte-uso) + actions.ts
+├── components/     Chat, ResultCard, DataIntegrityBlock, Nav, ThemeToggle, ui/
 ├── db/             drizzle schema, client, indexes.sql  ← sole schema owner
 ├── ingest/
 │   ├── adapters/   one file per source
@@ -611,16 +669,29 @@ src/
 │   └── seed.ts     fake development data
 ├── lib/
 │   ├── ai.ts          sole place a provider client is constructed
+│   ├── probe.ts       provider reachability check
 │   ├── intent.ts      the whole bot
+│   ├── scope.ts       out-of-scope detection — no imports, on purpose
+│   ├── answer.ts      what the page says about a result set
 │   ├── search.ts      deterministic search — sole path to the catalog
 │   ├── vocab.ts       controlled vocabulary — single source of truth
 │   ├── normalize.ts   folding, geography, categories
+│   ├── spanish.ts     Spanish morphology (verbs, euphonic "y"/"e")
+│   ├── geo.ts         point-in-polygon against DANE boundaries
 │   ├── relate.ts      "possibly the same place" hint
 │   ├── ratelimit.ts   inference quota
+│   ├── abuse.ts       abuse tracking and flood shedding
+│   ├── client-ip.ts   truncate + keyed-hash, never store an IP
 │   ├── intent-cache.ts
+│   ├── usage.ts       daily inference totals — no questions, no users
+│   ├── costo.ts       token totals → dollars
+│   ├── reporte.ts     the usage report's text
+│   ├── discord.ts     posts it to the webhook
 │   ├── guards.ts      production integrity
+│   ├── config.ts      static process.env reads (Edge runtime, see AGENTS.md)
+│   ├── data/          municipios.json, limites-municipios.json, vocabulario.json
 │   └── format.ts
-└── middleware.ts   issues the signed anonymous cookie
+└── middleware.ts   issues the signed anonymous cookie, hides /api and /salud
 ```
 
 `AGENTS.md` and `CLAUDE.md` are generated by `next dev`; project orientation was

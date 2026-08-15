@@ -1,5 +1,13 @@
 # Handoff: English refactor, linting, and a test suite
 
+> **Done — this is a historical record, not pending work.** ESLint, Prettier and
+> the test suite all exist; `CONVENTIONS.md` describes the current state. Kept
+> because the *reasons* below are still binding: why those specific lint rules
+> are on, why tests came before the translation, and which edge cases were
+> already known to be real. Do not execute it as a task list — the baseline
+> numbers in Task 0 are the fixture counts of the day and the source set has
+> grown since.
+
 Self-contained task spec. You do not need any prior conversation to execute it.
 
 Read `CONVENTIONS.md` first — it defines the language rule and the ten product

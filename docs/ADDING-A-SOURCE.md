@@ -3,9 +3,11 @@
 The highest-value contribution to this project. Each connected source makes
 every question answerable from one more place.
 
-Read `CONVENTIONS.md` first for the ten invariants. Three of them decide most of
-this work: sources start disabled, contact data is not copied, and `robots.txt`
-is respected with no workaround.
+Read the ten invariants in `AGENTS.md` first. Three of them decide most of this
+work: sources start disabled, `robots.txt` is respected with no workaround, and
+contact data is mirrored **only** from a source that collects authorization per
+person and declares it (`mirrorsContacts`) — for every other source, contacts
+are not copied at all.
 
 ## Step 1 — Investigate before writing code
 
@@ -45,6 +47,10 @@ Usually the most important decision, and it is made here rather than later.
   addresses, individual names. Link to the source instead. Cali Ayuda's page
   carries three kinds of report and only "Punto de ayuda" is ingested; needs
   and offers belong to individuals and carry a phone number and a first name.
+  The **one** exception is a source that collects authorization per person and
+  says so, like CORAG: set `mirrorsContacts` on that source and only that
+  source. It is a property of the source's consent model, never a global
+  setting, and redaction keeps running over the free text either way.
 - **Names of volunteers are not copied either.** Donde Ayudo records who
   verified each point. The fact of verification is kept; the identity is not.
 - **Only institutional record types** in v1: collection points, service points,
