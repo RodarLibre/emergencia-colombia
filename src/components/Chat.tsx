@@ -195,7 +195,7 @@ export function Chat() {
         ) : view.kind === "scope" ? (
           <ScopeView reason={view.reason} />
         ) : view.kind === "error" ? (
-          <ErrorView onRetry={() => run(draft)} />
+          <ErrorView />
         ) : view.kind === "coverage" ? (
           <CoverageView municipality={view.municipality} department={view.department} />
         ) : (
@@ -386,12 +386,40 @@ function StatusStrip({ view, stats }: { view: View; stats: CatalogStats | null }
   );
 }
 
+/**
+ * Buscar toma un par de segundos. Si pasa mucho más, algo se colgó.
+ *
+ * A los ocho segundos aparece una salida visible. En un celular no hay botón de
+ * recargar a la mano y "deslizar hacia abajo" no es un gesto que todo el mundo
+ * conozca: sin esto, quien se queda mirando el punto que late se va.
+ */
 function Loading() {
+  const [demorado, setDemorado] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDemorado(true), 8000);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
-    <p className="stamp text-muted flex items-center gap-2" aria-live="polite">
-      <span className="bg-accent inline-block h-1.5 w-1.5 animate-pulse rounded-full" />
-      Buscando en las fuentes conectadas…
-    </p>
+    <div className="flex flex-col gap-3">
+      <p className="stamp text-muted flex items-center gap-2" aria-live="polite">
+        <span className="bg-accent inline-block h-1.5 w-1.5 animate-pulse rounded-full" />
+        Buscando en las fuentes conectadas…
+      </p>
+      {demorado ? (
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="border-rule hover:border-accent flex min-h-[3rem] items-center justify-between gap-3 border px-3 text-left text-[0.92rem] font-semibold"
+        >
+          <span>Se está demorando · actualizar la página</span>
+          <span aria-hidden="true" className="text-accent shrink-0">
+            ↻
+          </span>
+        </button>
+      ) : null}
+    </div>
   );
 }
 
@@ -489,27 +517,40 @@ function CoverageView({ municipality, department }: { municipality: string; depa
   );
 }
 
-/** El sitio falló, no la pregunta. Se dice sin jerga y se ofrece reintentar. */
-function ErrorView({ onRetry }: { onRetry: () => void }) {
+/**
+ * El sitio falló, no la pregunta.
+ *
+ * Acá ya se reintentó y volvió a fallar, así que la acción principal es
+ * recargar de verdad —si el servidor cambió debajo, repetir la misma llamada
+ * falla igual—. Es un botón grande y sólido a propósito: en un celular no hay
+ * botón de recargar a la vista y sin esto la gente se va.
+ */
+function ErrorView() {
   return (
     <div className="border-rule flex flex-col gap-3 border p-4">
       <p className="font-display text-[1.15rem] leading-tight font-bold">
         No pude buscar en este momento.
       </p>
       <p className="text-muted text-[0.92rem] leading-relaxed">
-        Fue una falla nuestra, no de tu pregunta. Si sigue pasando, las fuentes están todas
-        enlazadas y podés entrar directo.
+        Fue una falla nuestra, no de tu pregunta.
       </p>
       <button
         type="button"
-        onClick={onRetry}
-        className="border-rule hover:border-accent flex min-h-[3rem] items-center justify-between gap-3 border px-3 text-left text-[0.92rem] font-semibold"
+        onClick={() => window.location.reload()}
+        className="bg-accent text-bg flex min-h-[3.25rem] items-center justify-center gap-2 px-3 text-[0.98rem] font-semibold"
       >
-        <span>Volver a intentar</span>
+        Actualizar la página
+        <span aria-hidden="true">↻</span>
+      </button>
+      <Link
+        href="/fuentes"
+        className="border-rule hover:border-accent flex min-h-[3rem] items-center justify-between gap-3 border px-3 text-[0.92rem] font-semibold"
+      >
+        <span>Entrar directo a las fuentes</span>
         <span aria-hidden="true" className="text-accent shrink-0">
           →
         </span>
-      </button>
+      </Link>
     </div>
   );
 }
