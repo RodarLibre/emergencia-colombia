@@ -36,7 +36,10 @@ function band(result: SearchResult): { className: string; label: string } {
   if (result.noLongerListed) {
     return {
       className: "bg-warn-bg text-warn-text border-warn-border border-b",
-      label: `La fuente ya no lo publica · visto ${relativeTime(result.lastSeenAt)}`,
+      // "La fuente ya no lo publica" hacia pensar en un detalle editorial. Lo
+      // que hay que entender antes de manejar hasta alla es que el dato esta
+      // viejo y que quien lo publico lo quito.
+      label: `Desactualizada, eliminada por la fuente · vista ${relativeTime(result.lastSeenAt)}`,
     };
   }
   if (result.verificationLevel === "official") {

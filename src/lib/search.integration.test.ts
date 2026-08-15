@@ -207,3 +207,67 @@ describe("records the source stopped publishing", () => {
     }
   });
 });
+
+/**
+ * Una coincidencia de palabra vale más que un parecido.
+ *
+ * `GREATEST(ts_rank, similarity)` mezclaba dos escalas distintas: ts_rank de una
+ * coincidencia real anda por 0.03-0.06, y la similitud por trigramas entre un
+ * registro entero y una pregunta corta anda por 0.12-0.15 para todos. El máximo
+ * era siempre el trigrama, así que el orden lo decidía el parecido del texto
+ * completo y no la relevancia. "dónde necesitan alcohol" dejaba tercero al
+ * único registro que pedía alcohol.
+ */
+describe("orden por relevancia", () => {
+  it("la coincidencia de palabra va antes que el rescate por parecido", async () => {
+    sourceId = await makeEnabledSource("rank-trigrama");
+    const coincide = await makeSourceRecord(sourceId, "coincide");
+    const soloParecido = await makeSourceRecord(sourceId, "solo-parecido");
+
+    const comun = {
+      recordType: "collection_point" as const,
+      status: "active" as const,
+      categoryCodes: [],
+      admin2Code: "76001",
+      admin2Name: "Cali",
+      locationPrecision: "unknown" as const,
+      verificationLevel: "unknown" as const,
+      observedAt: new Date(),
+    };
+
+    await db.insert(observations).values([
+      {
+        // Texto largo, como los reales: la similitud por trigramas contra una
+        // pregunta corta le queda baja aunque contenga la palabra exacta.
+        ...comun,
+        sourceRecordId: coincide,
+        title: "Pide alcohol",
+        contentHash: "sha256:coincide",
+        searchText:
+          "punto de acopio del barrio que recibe alcohol y otros insumos para " +
+          "la emergencia del sismo, con voluntarios en jornada continua",
+      },
+      {
+        // Corto y con erratas: no coincide ni una palabra, pero se parece
+        // muchísimo. Este le ganaba al de arriba.
+        ...comun,
+        sourceRecordId: soloParecido,
+        title: "Otra cosa",
+        contentHash: "sha256:parecido",
+        searchText: "dnde necesitn alcohl",
+      },
+    ]);
+
+    const results = await searchRecords({
+      q: "donde necesitan alcohol",
+      admin2Code: "76001",
+      limit: 20,
+    });
+    const posCoincide = results.findIndex((r) => r.sourceRecordId === coincide);
+    const posParecido = results.findIndex((r) => r.sourceRecordId === soloParecido);
+
+    expect(posCoincide).toBeGreaterThanOrEqual(0);
+    expect(posParecido).toBeGreaterThanOrEqual(0);
+    expect(posCoincide).toBeLessThan(posParecido);
+  });
+});

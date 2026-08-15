@@ -48,11 +48,16 @@ const SUGGESTIONS = [
   "¿Hubo réplicas anoche?",
 ];
 
+/** Marcas de una sola recarga tras un despliegue. Ver `run`. */
+const RECARGA = "ayuda:recarga";
+const PENDIENTE = "ayuda:pregunta-pendiente";
+
 type View =
   | { kind: "home" }
   | { kind: "answer"; question: string; answer: Answer; filters: AppliedFilters }
   | { kind: "scope"; question: string; reason: OutOfScopeReason }
-  | { kind: "coverage"; question: string; municipality: string; department: string };
+  | { kind: "coverage"; question: string; municipality: string; department: string }
+  | { kind: "error" };
 
 const NOTE_TEXT: Partial<Record<AnswerNote, { lead: string; rest: string }>> = {
   // Nadie se queda sin respuesta porque una palabra no estuviera en una lista,
@@ -98,6 +103,16 @@ export function Chat() {
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const pendiente = sessionStorage.getItem(PENDIENTE);
+    if (pendiente) {
+      sessionStorage.removeItem(PENDIENTE);
+      run(pendiente);
+    }
+    // Solo al montar: es la vuelta de la recarga, no algo que se repita.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     getStats()
       .then((s) => {
@@ -122,7 +137,27 @@ export function Chat() {
     setDraft(text);
 
     startTransition(async () => {
-      const result = await ask(text);
+      let result: Awaited<ReturnType<typeof ask>>;
+      try {
+        result = await ask(text);
+      } catch {
+        // Un despliegue reemplaza el contenedor y cambia el build id, asi que
+        // una pestaña abierta desde antes llama a una accion de servidor que ya
+        // no existe. Sin esto la pantalla se rompe y hay que recargar a mano.
+        //
+        // Se recarga una sola vez y se deja la pregunta guardada para
+        // repetirla: si el fallo es otro, el segundo intento muestra el aviso
+        // en lugar de entrar en bucle de recargas.
+        if (!sessionStorage.getItem(RECARGA)) {
+          sessionStorage.setItem(RECARGA, "1");
+          sessionStorage.setItem(PENDIENTE, text);
+          window.location.reload();
+          return;
+        }
+        setView({ kind: "error" });
+        return;
+      }
+      sessionStorage.removeItem(RECARGA);
       setView(
         result.kind === "out_of_scope"
           ? { kind: "scope", question: text, reason: result.reason }
@@ -159,6 +194,8 @@ export function Chat() {
           <Home stats={stats} onPick={run} />
         ) : view.kind === "scope" ? (
           <ScopeView reason={view.reason} />
+        ) : view.kind === "error" ? (
+          <ErrorView onRetry={() => run(draft)} />
         ) : view.kind === "coverage" ? (
           <CoverageView municipality={view.municipality} department={view.department} />
         ) : (
@@ -292,8 +329,9 @@ function SendButton({ expanded, disabled }: { expanded: boolean; disabled: boole
  * the same underlying question ("what do these fuentes actually have?").
  */
 function StatusStrip({ view, stats }: { view: View; stats: CatalogStats | null }) {
-  // Ni el rechazo por alcance ni el de cobertura tienen filtros que resumir.
-  if (view.kind === "scope" || view.kind === "coverage") return null;
+  // Ni el rechazo por alcance, ni el de cobertura, ni una falla nuestra tienen
+  // filtros que resumir.
+  if (view.kind === "scope" || view.kind === "coverage" || view.kind === "error") return null;
 
   if (view.kind === "home") {
     if (!stats || stats.sourceCount === 0) return null;
@@ -447,6 +485,31 @@ function CoverageView({ municipality, department }: { municipality: string; depa
         Si conocés un sitio que esté publicando ayuda en {department}, escribinos: conectar una
         fuente más es lo que más sirve.
       </p>
+    </div>
+  );
+}
+
+/** El sitio falló, no la pregunta. Se dice sin jerga y se ofrece reintentar. */
+function ErrorView({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="border-rule flex flex-col gap-3 border p-4">
+      <p className="font-display text-[1.15rem] leading-tight font-bold">
+        No pude buscar en este momento.
+      </p>
+      <p className="text-muted text-[0.92rem] leading-relaxed">
+        Fue una falla nuestra, no de tu pregunta. Si sigue pasando, las fuentes están todas
+        enlazadas y podés entrar directo.
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="border-rule hover:border-accent flex min-h-[3rem] items-center justify-between gap-3 border px-3 text-left text-[0.92rem] font-semibold"
+      >
+        <span>Volver a intentar</span>
+        <span aria-hidden="true" className="text-accent shrink-0">
+          →
+        </span>
+      </button>
     </div>
   );
 }

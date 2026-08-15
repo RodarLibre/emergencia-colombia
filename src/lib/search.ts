@@ -207,10 +207,22 @@ export async function searchRecords(filters: SearchFilters): Promise<SearchResul
       ? sql`ts_rank(to_tsvector('spanish', l.search_text), websearch_to_tsquery('spanish', ${rankOnly}))`
       : sql`0`
     : useTrigram
-      ? sql`GREATEST(
-          ts_rank(to_tsvector('spanish', l.search_text), websearch_to_tsquery('spanish', ${tsQuery})),
-          similarity(l.search_text, ${folded})
-        )`
+      ? // Not GREATEST of the two. They are not on the same scale: ts_rank of a
+        // real match runs around 0.03-0.06, while trigram similarity between a
+        // whole record and a short question sits around 0.12-0.15 for
+        // everything, so the maximum was ALWAYS the trigram and the ranking was
+        // decided by text length rather than by relevance. Asked "donde
+        // necesitan alcohol", the record that did ask for alcohol scored twice
+        // the relevance of the rest and came third.
+        //
+        // A word match is worth more than a resemblance, always. The +1 puts
+        // every text match above every trigram rescue — similarity never
+        // exceeds 1 — and ts_rank orders within the matches.
+        sql`CASE
+          WHEN to_tsvector('spanish', l.search_text) @@ websearch_to_tsquery('spanish', ${tsQuery})
+            THEN 1 + ts_rank(to_tsvector('spanish', l.search_text), websearch_to_tsquery('spanish', ${tsQuery}))
+          ELSE similarity(l.search_text, ${folded})
+        END`
       : sql`ts_rank(to_tsvector('spanish', l.search_text), websearch_to_tsquery('spanish', ${tsQuery}))`;
 
   const query = sql`
