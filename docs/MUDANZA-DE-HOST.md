@@ -129,12 +129,13 @@ El de **reporte de consumo** es `/etc/cron.d/ayuda-reporte`, y llama a
 no guardarlo en dos sitios:
 
 ```
-0 2 * * * root /usr/local/bin/ayuda-reporte
+0 * * * * root /usr/local/bin/ayuda-reporte
 ```
 
-Las 02:00 UTC son las 21:00 en Bogotá, y la hora importa: los totales se
-agregan por día de Bogotá, así que un reporte de la mañana diría "hoy: casi
-nada". Sin `DISCORD_WEBHOOK_URL` no envía nada y tampoco falla.
+Cada hora en punto. El reporte trae "hoy", "últimos 7 días" y el acumulado;
+"hoy" se agrega por día de Bogotá, así que los reportes de la madrugada
+muestran un día que recién empieza —no es un error, es el día real—. Sin
+`DISCORD_WEBHOOK_URL` no envía nada y tampoco falla.
 
 ## Notas sobre `cloudflared` en redes con problemas
 
