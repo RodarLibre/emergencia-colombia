@@ -1,3 +1,8 @@
+> **Superseded.** The deployment moved to DigitalOcean. Kept because the
+> container, Kamal, cron and Cloudflare Tunnel steps still describe how the app
+> is wired, but the Proxmox/LXC host steps no longer match production. Deploy
+> steps live in `README.md`; moving hosts is `MUDANZA-DE-HOST.md`.
+
 # Deploying to a Proxmox LXC with Kamal
 
 Concrete steps for the container this project is being deployed to. The general

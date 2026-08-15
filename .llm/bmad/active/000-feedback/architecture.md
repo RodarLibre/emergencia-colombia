@@ -19,7 +19,7 @@ baselineRef: 'main @ 8ae5097'
 decisions:
   questionTextCapture: 'Option B — consented text on thumbs-down, SHIPPED DORMANT (flag off by default; obligations attach only on flip)'
   turnIdIntegrity: 'Signed/HMAC turnId is a precondition for text capture, not hardening'
-  legalPages: '/terminos ships independently; /privacidad is a flag-flip prerequisite'
+  legalPages: '/terminos and /privacidad both shipped; flag flip now blocked only on a human owner for the mailbox'
 ---
 
 # Architecture Decision Document
@@ -331,3 +331,126 @@ foreign-signed one does not, `caseCode` is stable.
 
 Steps 1–5 are exercisable with `AI_ENABLED` off and `FEEDBACK_TEXT` unset
 (NFR-8). `/privacidad` is written only when the flag is flipped.
+
+---
+
+## Implementation record
+
+Built on `000-feedback` at baseline `e9c2393`. Verified: `tsc --noEmit` clean,
+`eslint` clean, `prettier` clean, **354/354 unit tests** (was 352 + 2 new
+regression tests). No new dependencies.
+
+### Departures from the lazy pass above
+
+| Planned | Shipped | Why |
+|---|---|---|
+| `drizzle-kit` migration | `src/db/answer-feedback.sql`, applied with `psql -f` | `push` diffs the whole schema; production drift would put `observations` and `source_records` in the blast radius. Follows the existing `indexes.sql` pattern. |
+| `onConflictDoNothing` | `onConflictDoNothing` for the thumb, `onConflictDoUpdate` for the panel | Two writes race for one row. Only the panel may revise it, or a late-landing thumb blanks a comment somebody just consented to. |
+| `clientKey` column | dropped entirely | `turnId` is issued to one person for one answer, so `UNIQUE(turn_id)` already is one-vote-per-answer. |
+| `resultCount` in context | dropped | It is `resultIds.length`. Two fields that can disagree. |
+| index on `(rating, createdAt)` | dropped | No query filters by rating; `jq` does the breakdown. |
+
+### What the review layers found
+
+Three parallel layers ran: Blind Hunter (diff only), Edge Case Hunter (diff +
+project), Acceptance Auditor (diff + spec + invariants). 16 findings actioned.
+
+**The Critical.** `validTurnId` destructured `turnId.split(".")` and ignored
+anything past the second segment, while the *whole string* was what got stored.
+So `<uuid>.<sig>.1`, `.2`, `.3` all verified — the signature only ever covered
+the uuid — and each landed as its own row past `UNIQUE`. One legitimate search
+bought unlimited writes into a table that keeps text on request. Fixed by
+requiring exactly two segments; two regression tests pin it.
+
+The lesson is narrow and worth keeping: the signature covered the id, the
+uniqueness constraint covered the string, and nothing checked that those were
+the same thing.
+
+**The consent defect.** `<Feedback>` sat at a fixed position in `AnswerView`
+with no `key`, so React would preserve its state across answers — a tick given
+for one question carrying onto the text of the next. The two hunters disagreed
+on whether it was reachable; Edge Case Hunter was right that `pending` swaps in
+`<Loading/>` and unmounts the tree, so it was not. Keyed anyway: consent holding
+by accident of an unrelated loading state is not a property worth resting on.
+
+**The sink nobody described as text.** `context` round-trips through the browser
+and was written to `jsonb` unvalidated and unbounded — a free-text field that
+never asked for consent and that the retention sweep does not clear. Now rebuilt
+server-side from known keys with every value capped.
+
+**And then the same sink again, found by reading one row of real data.** The
+hardening above bounded what a *client* could put in `context`. It did not stop
+the server putting the question there itself: `ask()` set `text: query.q`, and on
+the deterministic path `query.q` is the trimmed question, verbatim. So every
+vote — up or down, flag off, nothing ticked — stored the person's words in the
+one column the sweep never clears, because `purgeExpiredText` only touches rows
+with a `consent_version`. Three defences read correctly while the data walked
+past all of them, because none was looking at `context`.
+
+Fixed at both ends: `ask()` no longer puts it there (what was searched is already
+recorded by `types`, `categories`, `municipality` — enums and DANE codes), and
+`safeContext` has no `text` key at all, so a caller can send it and it still
+cannot land. Four regression tests in `context.test.ts` assert the question
+cannot appear however it is shaped.
+
+The lesson is worth more than the fix: reviewing the design said the gate held;
+reading one stored row said it did not. `mr.blurby` found this by looking at the
+data.
+
+### Known, accepted
+
+- A tampering client can still write *wrong* (not unbounded) metadata into its
+  own row. Reconstructing server-side would cost a write on every search.
+- `INGEST_SECRET` is shared with the feedback reader. Marked `ponytail:` in the
+  route; splitting it is a flag-flip prerequisite, not a launch blocker, because
+  nothing personal exists while capture is dormant.
+- `?caso=` is a prefix match over 32 bits, so collisions are possible. The delete
+  refuses with `409` and lists candidates rather than guessing.
+
+### Shipped after the review rounds
+
+- **`/privacidad`** — the notice the consent checkbox links to. Imports
+  `RETENTION_DAYS` rather than restating it, so the promised window cannot drift
+  from the sweep enforcing it. Discloses that questions are sent to DigitalOcean
+  Gradient for interpretation, which is a flow that already existed and that a
+  privacy notice made impossible to leave unsaid. That paragraph needs review by
+  somebody qualified — it describes an international transfer.
+- **Placement.** The control moved from the very bottom of `AnswerView` to above
+  the result cards. At the bottom the only people who reached it were the ones
+  patient enough to scroll past twenty shelter listings — the opposite of the
+  people whose answer failed. A follow-up review then caught what the move
+  broke: focus fell to `<body>` on vote (now moves to the block, with
+  `aria-live`), and the top rule read as attaching the case code to the first
+  card (rule moved to the bottom).
+- **`Enviar` is a filled CTA** — `bg-accent text-bg`, matching the search submit.
+  Measured, not eyeballed: 6.38:1 light, 10.13:1 dark, both past WCAG AA.
+- **`cap` and `safeContext` moved into `src/lib/feedback.ts`.** A `"use server"`
+  module drags the database in, so their tests could not run without Postgres
+  (NFR-7). The pure module was the right home anyway.
+
+### Test status at hand-off
+
+Unit: **358 pass**. Typecheck, ESLint, Prettier clean.
+
+Integration: **6 of 33 fail** — in `search.integration.test.ts` and
+`search-fallback.integration.test.ts`. Verified pre-existing: the identical six
+fail on baseline `e9c2393` with this branch stashed. Nothing here touches
+`search.ts`. They cover relevance ranking and latest-observation semantics,
+which decide which shelter somebody sees first, so they deserve their own
+investigation.
+
+### Docs updated
+
+`README.md` — Answer feedback section, `db/` layout, deploy steps, and the two
+operational facts (apply `answer-feedback.sql` by hand; retention rides the
+hourly report). `.env.example` — `FEEDBACK_TEXT` with its flip preconditions.
+
+`docs/DEPLOY-PROXMOX.md` is marked **superseded**: the deployment moved to
+DigitalOcean, so it is the wrong home for anything operational. Nothing about
+this feature was left there. Its Kamal, cron and Cloudflare Tunnel steps still
+describe how the app is wired, which is why it is annotated rather than deleted
+— that call is the owner's.
+
+`/terminos` now carries a real contact: `hola@rodarlibre.co`, beside the
+repository issues link. The erasure channel FR13 documents is reachable, so
+NFR-12 no longer rests on a placeholder.
