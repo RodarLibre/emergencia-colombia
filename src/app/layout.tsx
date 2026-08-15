@@ -140,7 +140,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
           <footer className="border-rule text-muted border-t">
             <div className="px-5 py-4 text-[0.78rem] leading-relaxed">
-              Proyecto comunitario, sin relación oficial con el 123, la UNGRD ni la Cruz Roja.
+              Proyecto comunitario, sin relación oficial con el 123, la UNGRD ni la Cruz Roja.{" "}
+              {/*
+                The full caveat has one home. The line above says who we are not;
+                this says what the information is and is not, which is what
+                somebody deciding whether to drive somewhere actually needs.
+              */}
+              <Link href="/terminos" className="hover:text-accent underline underline-offset-2">
+                Términos de uso
+              </Link>
+              <span aria-hidden="true"> · </span>
+              <Link href="/privacidad" className="hover:text-accent underline underline-offset-2">
+                Privacidad
+              </Link>
+              .
             </div>
             {/*
               Authorship, in the same quiet mono the rest of the sheet uses for
