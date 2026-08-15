@@ -469,6 +469,19 @@ export async function searchWithFallback(filters: SearchFilters): Promise<Broade
   const exact = await searchRecords(filters);
   if (exact.length > 0) return withCompanions(exact, []);
 
+  /**
+   * Al ampliar, el texto que se deja de exigir pasa a ordenar.
+   *
+   * Antes se tiraba. Preguntando "hay colegios que sean puntos de albergue en
+   * Cali" no habia ningun albergue con la palabra colegio, asi que se ampliaba
+   * y salian ocho albergues en el orden de siempre: la unica palabra que decia
+   * QUE clase de albergue se buscaba desaparecia sin dejar rastro.
+   *
+   * Degradarla de filtro a orden no puede vaciar la respuesta —ordenar nunca
+   * excluye— y sube al principio lo que si se parece a lo que preguntaron.
+   */
+  const ordenarPor = (f: SearchFilters) => f.rankBy ?? f.q ?? null;
+
   /** Anything left to narrow by. No filters would mean "the whole catalog". */
   const stillNarrows = (f: SearchFilters) =>
     Boolean(f.q) ||
@@ -484,7 +497,7 @@ export async function searchWithFallback(filters: SearchFilters): Promise<Broade
   // "nadie publica alojamiento" while a shelter sat in the catalog. The person
   // with the least options got the emptiest answer.
   if (filters.q) {
-    const next: SearchFilters = { ...filters, q: null };
+    const next: SearchFilters = { ...filters, q: null, rankBy: ordenarPor(filters) };
     if (stillNarrows(next)) {
       const widened = await searchRecords(next);
       if (widened.length > 0) return withCompanions(widened, ["text"]);
@@ -495,7 +508,12 @@ export async function searchWithFallback(filters: SearchFilters): Promise<Broade
   // "albergue con agua" it is better to offer albergues than to offer anything
   // at all that has water.
   if (filters.categories?.length) {
-    const next: SearchFilters = { ...filters, q: null, categories: [] };
+    const next: SearchFilters = {
+      ...filters,
+      q: null,
+      rankBy: ordenarPor(filters),
+      categories: [],
+    };
     if (stillNarrows(next)) {
       const widened = await searchRecords(next);
       if (widened.length > 0) {
@@ -508,7 +526,13 @@ export async function searchWithFallback(filters: SearchFilters): Promise<Broade
   // for. The municipality is never dropped — someone in Palmira is not helped
   // by a collection point in Cali.
   if (filters.types?.length) {
-    const next: SearchFilters = { ...filters, q: null, categories: [], types: [] };
+    const next: SearchFilters = {
+      ...filters,
+      q: null,
+      rankBy: ordenarPor(filters),
+      categories: [],
+      types: [],
+    };
     if (stillNarrows(next)) {
       const widened = await searchRecords(next);
       if (widened.length > 0) {

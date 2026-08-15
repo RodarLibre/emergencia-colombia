@@ -2,8 +2,26 @@ import { sql } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { db } from "@/db";
+import { observations, sourceRecords, sources } from "@/db/schema";
+import { deleteTestSource, testSlug, testSourceConfig } from "@/test-support/db";
 
 import { searchWithFallback } from "./search";
+
+async function crearFuente(label: string): Promise<number> {
+  const [inserted] = await db
+    .insert(sources)
+    .values({ ...testSourceConfig(testSlug(label)), enabled: true })
+    .returning();
+  return inserted!.id;
+}
+
+async function crearRegistro(ownerSourceId: number, externalId: string): Promise<number> {
+  const [inserted] = await db
+    .insert(sourceRecords)
+    .values({ sourceId: ownerSourceId, externalId, canonicalUrl: "https://example.invalid" })
+    .returning();
+  return inserted!.id;
+}
 
 /**
  * Widening exists because zero results is the worst outcome this site can
@@ -175,5 +193,71 @@ describe("rankBy", () => {
     const posicion = con.results.findIndex((r) => r.sourceRecordId === ultimo.sourceRecordId);
     const antes = base.results.findIndex((r) => r.sourceRecordId === ultimo.sourceRecordId);
     expect(posicion).toBeLessThanOrEqual(antes);
+  });
+});
+
+/**
+ * Al ampliar, el texto que se deja de exigir pasa a ordenar.
+ *
+ * "Hay colegios que sean puntos de albergue en Cali": ningún albergue tenía la
+ * palabra colegio, así que se ampliaba y la única palabra que decía QUÉ clase
+ * de albergue se buscaba desaparecía. Ahora ordena, que no puede vaciar nada.
+ */
+describe("el texto descartado sigue ordenando", () => {
+  it("sube lo que se parece a la palabra que se dejó de exigir", async () => {
+    const sourceId = await crearFuente("amplia-ordena");
+    try {
+      const comun = {
+        recordType: "shelter" as const,
+        status: "active" as const,
+        categoryCodes: [],
+        admin2Code: "76001",
+        admin2Name: "Cali",
+        locationPrecision: "unknown" as const,
+        verificationLevel: "unknown" as const,
+      };
+
+      const otro = await crearRegistro(sourceId, "otro");
+      const colegio = await crearRegistro(sourceId, "colegio");
+
+      await db.insert(observations).values([
+        {
+          ...comun,
+          sourceRecordId: otro,
+          title: "Albergue parroquial",
+          observedAt: new Date(),
+          contentHash: "sha256:otro",
+          searchText: "albergue parroquial del barrio",
+        },
+        {
+          // Más nuevo el otro: sin la pista de orden, este iría después.
+          ...comun,
+          sourceRecordId: colegio,
+          title: "Colegio Bolívar",
+          observedAt: new Date(Date.now() - 60 * 60_000),
+          contentHash: "sha256:colegio",
+          searchText: "colegio bolivar habilitado como albergue",
+        },
+      ]);
+
+      // La categoría no la tiene ninguno, así que se amplía dos veces: primero
+      // cae el texto, después la categoría. Sin esto, "colegio" se perdía en el
+      // camino y el orden quedaba por fecha.
+      const search = await searchWithFallback({
+        q: "colegio",
+        types: ["shelter"],
+        categories: ["construction_materials"],
+        admin2Code: "76001",
+        limit: 20,
+      });
+
+      expect(search.dropped).toContain("categories");
+      const pos = (id: number) => search.results.findIndex((r) => r.sourceRecordId === id);
+      expect(pos(colegio)).toBeGreaterThanOrEqual(0);
+      expect(pos(otro)).toBeGreaterThanOrEqual(0);
+      expect(pos(colegio)).toBeLessThan(pos(otro));
+    } finally {
+      await deleteTestSource(sourceId);
+    }
   });
 });
