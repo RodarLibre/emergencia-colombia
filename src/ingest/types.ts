@@ -43,6 +43,8 @@ export type SourceConfig = {
   pollIntervalSeconds: number;
   contactNote: string;
   coverageAdmin1Code?: string;
+  /** La fuente publica una ventana reciente, no su catalogo. Ver el comentario en `schema.ts`. */
+  windowedListing?: boolean;
   /**
    * La fuente recoge consentimiento por persona y hay acuerdo con ella para
    * espejar sus contactos.

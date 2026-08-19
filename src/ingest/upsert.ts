@@ -79,6 +79,7 @@ export async function ensureSource(config: SourceConfig): Promise<number> {
       .set({
         name: config.name,
         coverageAdmin1Code: config.coverageAdmin1Code ?? null,
+        windowedListing: config.windowedListing ?? false,
         pollIntervalSeconds: config.pollIntervalSeconds,
         contactNote: config.contactNote,
       })
@@ -97,6 +98,7 @@ export async function ensureSource(config: SourceConfig): Promise<number> {
       pollIntervalSeconds: config.pollIntervalSeconds,
       contactNote: config.contactNote,
       coverageAdmin1Code: config.coverageAdmin1Code ?? null,
+      windowedListing: config.windowedListing ?? false,
       // Disabled until someone reviews the source's policy.
       // Enabled by hand: `pnpm ingest <slug> --habilitar`.
       enabled: false,

@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { db } from "@/db";
@@ -341,5 +341,51 @@ describe("orden por estado", () => {
     expect(pos(atendido)).toBeLessThan(pos(cerrado));
     // Y ninguno desaparece.
     expect(pos(cerrado)).toBeGreaterThanOrEqual(0);
+  });
+});
+
+/**
+ * Una fuente que publica una ventana no "retira" lo que queda fuera de ella.
+ *
+ * Mapa de Emergencia trae `vigencia_horas: 6`. Leer su ausencia como retiro
+ * marco 912 de sus 919 registros como eliminados de un golpe, y en Pereira
+ * —donde es la unica fuente— los cuatro albergues quedaron con el cartel de
+ * muertos. No los quitaron: no los han reconfirmado hoy, y eso ya lo dice la
+ * banda de frescura de cada ficha.
+ */
+describe("fuentes que publican una ventana", () => {
+  it("no marca como retirado lo que solo falto en la ultima lectura", async () => {
+    sourceId = await makeEnabledSource("ventana");
+    await db.update(sources).set({ windowedListing: true }).where(eq(sources.id, sourceId));
+
+    const viejo = await makeSourceRecord(sourceId, "fuera-de-ventana");
+    const nuevo = await makeSourceRecord(sourceId, "en-ventana");
+    // El viejo no aparecio en la ultima lectura; el nuevo si.
+    await db
+      .update(sourceRecords)
+      .set({ lastSeenAt: new Date(Date.now() - 48 * 3600_000) })
+      .where(eq(sourceRecords.id, viejo));
+
+    const comun = {
+      recordType: "shelter" as const,
+      status: "active" as const,
+      categoryCodes: [],
+      admin2Code: "76001",
+      admin2Name: "Cali",
+      locationPrecision: "unknown" as const,
+      verificationLevel: "unknown" as const,
+      observedAt: new Date(),
+      searchText: "albergue de ventana",
+    };
+    await db.insert(observations).values([
+      { ...comun, sourceRecordId: viejo, title: "Fuera de ventana", contentHash: "sha256:v1" },
+      { ...comun, sourceRecordId: nuevo, title: "En ventana", contentHash: "sha256:v2" },
+    ]);
+
+    const results = await searchRecords({ types: ["shelter"], admin2Code: "76001", limit: 20 });
+    const fuera = results.find((r) => r.sourceRecordId === viejo);
+
+    expect(fuera).toBeDefined();
+    expect(fuera!.noLongerListed).toBe(false);
   });
 });

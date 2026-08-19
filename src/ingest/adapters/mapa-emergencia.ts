@@ -49,6 +49,10 @@ export const MAPA_EMERGENCIA_SOURCE = {
   // referencia: cada punto lleva su municipio calculado desde las coordenadas,
   // y los de fuera del area cubierta quedan sin municipio a proposito.
   coverageAdmin1Code: "76",
+  // El feed trae `vigencia_horas: 6` y lo dice en su propia nota: "lo que no
+  // aparece aqui esta archivado". Publica una ventana, no un catalogo, asi que
+  // que un punto falte en una lectura NO significa que lo hayan retirado.
+  windowedListing: true,
   contactNote:
     "Feed publico acordado con la fuente el 2026-08-14. Condiciones: mostrar siempre la hora de confirmacion, enlazar a la ficha para contacto, y atribuir con enlace al mapa. El contacto del acuerdo no se guarda en el repositorio.",
 } as const;

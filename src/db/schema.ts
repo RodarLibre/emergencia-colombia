@@ -48,6 +48,22 @@ export const sources = pgTable("sources", {
   coverageAdmin1Code: text("coverage_admin1_code"),
   policyReviewedAt: timestamp("policy_reviewed_at", { withTimezone: true }),
   contactNote: text("contact_note"),
+
+  /**
+   * La fuente publica una VENTANA, no su catalogo completo.
+   *
+   * Mapa de Emergencia trae `vigencia_horas: 6`: solo lo confirmado en las
+   * ultimas seis horas, y lo dice ella misma —"lo que no aparece aqui esta
+   * archivado"—. Con la regla normal, no estar en la lectura significa "la
+   * fuente lo quito", y eso marco 912 de 919 registros como eliminados. En
+   * Pereira, donde es la unica fuente, los cuatro albergues quedaron con el
+   * cartel de muertos.
+   *
+   * No los quitaron: no los han reconfirmado hoy, que es otra cosa y ya la dice
+   * la banda de frescura de cada ficha. Para estas fuentes la ausencia no se
+   * interpreta como retiro.
+   */
+  windowedListing: boolean("windowed_listing").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
