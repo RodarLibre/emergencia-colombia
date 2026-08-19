@@ -128,3 +128,49 @@ describe("assertNoCountCollapse — quarantine", () => {
     await expect(assertNoCountCollapse(sourceId, 7)).resolves.toBeUndefined();
   });
 });
+
+/**
+ * El guardia compara lectura contra lectura, no contra el acumulado.
+ *
+ * Con el acumulado, una fuente que publica una ventana —Mapa de Emergencia
+ * lista lo confirmado en las ultimas seis horas— entrega 20 contra 919 y eso
+ * se lee como un derrumbe del 98%. Quedo en cuarentena cuatro dias con la
+ * fuente sana.
+ */
+describe("assertNoCountCollapse", () => {
+  it("no se asusta por el catalogo acumulado si la ultima lectura fue chica", async () => {
+    const sourceId = await ensureSource({ ...testSourceConfig(testSlug("ventana-guardia")) });
+    try {
+      const ahora = new Date();
+      const viejo = new Date(Date.now() - 48 * 3600_000);
+
+      // 30 registros acumulados de lecturas viejas, 5 en la ultima.
+      for (let i = 0; i < 30; i++) {
+        await db.insert(sourceRecords).values({
+          sourceId,
+          externalId: `viejo-${i}`,
+          canonicalUrl: "https://example.invalid",
+          lastSeenAt: viejo,
+        });
+      }
+      for (let i = 0; i < 5; i++) {
+        await db.insert(sourceRecords).values({
+          sourceId,
+          externalId: `nuevo-${i}`,
+          canonicalUrl: "https://example.invalid",
+          lastSeenAt: ahora,
+        });
+      }
+
+      // Cuatro contra los cinco de la ultima lectura: baja, pero dentro de
+      // tolerancia. Contra los 35 acumulados habria sido un 89% de caida.
+      await expect(assertNoCountCollapse(sourceId, 4)).resolves.toBeUndefined();
+      // Y un derrumbe real frente a la ultima lectura si se detiene.
+      await expect(assertNoCountCollapse(sourceId, 1)).rejects.toThrow(
+        /cuarentena|caida|La fuente/,
+      );
+    } finally {
+      await deleteTestSource(sourceId);
+    }
+  });
+});
