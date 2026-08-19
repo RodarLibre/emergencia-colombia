@@ -254,7 +254,8 @@ export async function searchRecords(filters: SearchFilters): Promise<SearchResul
         s.name  AS source_name,
         s.slug  AS source_slug,
         s.trust_label,
-        s.coverage_admin1_code
+        s.coverage_admin1_code,
+        s.windowed_listing
       FROM observations o
       JOIN source_records sr ON sr.id = o.source_record_id
       JOIN sources s ON s.id = sr.source_id
@@ -272,7 +273,16 @@ export async function searchRecords(filters: SearchFilters): Promise<SearchResul
       (l.admin2_code IS NULL) AS municipality_unspecified,
       -- Five minutes of slack so the spread of timestamps within a single
       -- ingest run never marks a record as missing.
-      (l.last_seen_at < l.source_last_read - INTERVAL '5 minutes') AS no_longer_listed
+      --
+      -- Only for a source that publishes its whole catalogue. Mapa de
+      -- Emergencia publishes a six-hour window, so absence there means "not
+      -- reconfirmed today", not "taken down" — and reading it as a takedown
+      -- put the removed label on 912 of its 919 records, including every
+      -- shelter in Pereira, where it is the only source we have.
+      (
+        NOT l.windowed_listing
+        AND l.last_seen_at < l.source_last_read - INTERVAL '5 minutes'
+      ) AS no_longer_listed
     FROM latest l
     WHERE ${sql.join(conditions, sql` AND `)}
     -- Soft quality filter: nothing is hidden, but among results of similar
@@ -287,7 +297,10 @@ export async function searchRecords(filters: SearchFilters): Promise<SearchResul
       -- Nothing is hidden — a closed shelter is still an answer, and absence is
       -- not proof it reopened — but it goes last.
       CASE
-        WHEN (l.last_seen_at < l.source_last_read - INTERVAL '5 minutes') THEN 3
+        WHEN (
+          NOT l.windowed_listing
+          AND l.last_seen_at < l.source_last_read - INTERVAL '5 minutes'
+        ) THEN 3
         WHEN l.status = 'closed' THEN 2
         WHEN l.status = 'fulfilled' THEN 1
         ELSE 0
