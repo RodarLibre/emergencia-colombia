@@ -45,10 +45,25 @@ export class QuarantineError extends Error {}
  * much. Called BEFORE writing anything.
  */
 export async function assertNoCountCollapse(sourceId: number, discovered: number): Promise<void> {
+  // How many the source LISTED last time, not how many we have accumulated.
+  //
+  // The accumulated total was a proxy, and it broke on the first source that
+  // publishes a window instead of a catalogue: Mapa de Emergencia lists what
+  // was confirmed in the last six hours, so 20 against 919 read as a 98%
+  // collapse and quarantined every run. The source was healthy; the baseline
+  // was wrong. It stayed frozen for four days.
+  //
+  // Fetch against previous fetch is also what the guard is actually for —
+  // catching a parser that finds 3 of 8 — and for a source that does publish
+  // its whole catalogue the two numbers are the same.
   const [row] = (await db.execute(sql`
     SELECT COUNT(*)::int AS previous
     FROM source_records
-    WHERE source_id = ${sourceId} AND withdrawn_at IS NULL
+    WHERE source_id = ${sourceId}
+      AND withdrawn_at IS NULL
+      AND last_seen_at >= (
+        SELECT MAX(last_seen_at) FROM source_records WHERE source_id = ${sourceId}
+      ) - INTERVAL '5 minutes'
   `)) as unknown as { previous: number }[];
 
   const previous = row?.previous ?? 0;
