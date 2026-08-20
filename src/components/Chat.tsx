@@ -607,9 +607,19 @@ function LostPet() {
   return (
     <>
       <p className="font-display text-[1.15rem] leading-tight font-bold">
-        No tengo reportes de mascotas. Estos dos sitios sí:
+        No tengo reportes de mascotas. Estos sitios sí:
       </p>
+      {/*
+        Primero el del Eje Cafetero. Las otras dos son del Valle, y quien
+        pregunta desde Pereira —la ciudad mas golpeada de ese lado— recibia
+        solo enlaces de Cali. Este cubre Pereira, Dosquebradas, Manizales y
+        Cali, y es el unico de los tres que no deja telefonos a la vista en su
+        propio HTML.
+      */}
       <div className="flex flex-col gap-2">
+        <ReferralLink href="https://encuentratumascota.co/anuncios/se-busca">
+          Encuentra tu Mascota — Eje Cafetero y Valle
+        </ReferralLink>
         <ReferralLink href="https://reunemascotas.brannd.com.co/">
           Reúne Mascotas — perros y gatos
         </ReferralLink>
