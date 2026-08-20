@@ -14,7 +14,7 @@ import { sql } from "drizzle-orm";
 import { client, db } from "@/db";
 import { observations, sourceRecords, sources } from "@/db/schema";
 import { buildSearchText } from "@/lib/normalize";
-import { OPERATING_ADMIN1, type Category, type RecordTypeV1, type Status } from "@/lib/vocab";
+import { OPERATING_ADMIN1, departmentOf, type Category, type RecordTypeV1, type Status } from "@/lib/vocab";
 
 if (process.env.NODE_ENV === "production") {
   throw new Error("db:seed does not run in production. This data is fake.");
@@ -378,8 +378,8 @@ async function insertRecord(sourceId: number, baseUrl: string, r: SeedRecord) {
     title: r.title,
     description: r.description,
     categoryCodes: r.categories,
-    admin1Code: OPERATING_ADMIN1.code,
-    admin1Name: OPERATING_ADMIN1.name,
+    admin1Code: departmentOf(r.admin2Code)?.code ?? OPERATING_ADMIN1.code,
+    admin1Name: departmentOf(r.admin2Code)?.name ?? OPERATING_ADMIN1.name,
     admin2Code: r.admin2Code,
     admin2Name: r.admin2Name,
     locality: r.locality,

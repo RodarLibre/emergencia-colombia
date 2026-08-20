@@ -174,3 +174,39 @@ describe("assertNoCountCollapse", () => {
     }
   });
 });
+
+/**
+ * El departamento sale del municipio, no del área operativa.
+ *
+ * Todo registro llevaba el primer departamento cubierto. Con Valle solo era
+ * correcto; al sumar el Eje Cafetero, 95 registros quedaron con el municipio
+ * bien y el departamento mal — Pereira 66001 al lado del departamento 76.
+ */
+describe("departamento del registro", () => {
+  it("un municipio de Risaralda no queda marcado como Valle", async () => {
+    const sourceId = await ensureSource({ ...testSourceConfig(testSlug("depto")) });
+    try {
+      await upsertRecords(sourceId, [
+        buildParsedRecord({
+          externalId: "pereira-1",
+          admin2Code: "66001",
+          admin2Name: "Pereira",
+        }),
+      ], "unknown");
+
+      const [fila] = (await db
+        .select({ admin1Code: observations.admin1Code, admin1Name: observations.admin1Name })
+        .from(observations)
+        .innerJoin(sourceRecords, eq(sourceRecords.id, observations.sourceRecordId))
+        .where(eq(sourceRecords.sourceId, sourceId))) as {
+        admin1Code: string | null;
+        admin1Name: string | null;
+      }[];
+
+      expect(fila?.admin1Code).toBe("66");
+      expect(fila?.admin1Name).toBe("Risaralda");
+    } finally {
+      await deleteTestSource(sourceId);
+    }
+  });
+});
