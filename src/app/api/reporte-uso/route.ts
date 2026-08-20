@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
   // Retention rides this cron instead of getting its own: it already runs
   // hourly with the operator secret, and one line in the crontab is one thing
-  // somebody has to know exists (docs/DEPLOY-PROXMOX.md §7).
+  // somebody has to know exists (docs/DEPLOY.md §5).
   //
   // In its own try, so a failed purge still sends the spend report. Losing
   // cost visibility over a cleanup problem would be paying twice for one fault.
