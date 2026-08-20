@@ -1,4 +1,5 @@
 import type { ResumenDeUso } from "./costo";
+import { staleSources, type SourceStatus } from "./source-health";
 
 /**
  * Armado del mensaje de consumo. Puro: se prueba sin base y sin red.
@@ -11,12 +12,26 @@ function usd(n: number): string {
   return `US$ ${n < 0.01 && n > 0 ? n.toFixed(4) : n.toFixed(2)}`;
 }
 
+/** "20 min", "3 h", "4 días" — lo que se lee de un vistazo en un teléfono. */
+function horas(h: number): string {
+  if (h < 1) return `${Math.max(1, Math.round(h * 60))} min`;
+  if (h < 48) return `${Math.round(h)} h`;
+  return `${Math.round(h / 24)} días`;
+}
+
 function miles(n: number): string {
   return n.toLocaleString("es-CO");
 }
 
-/** Verde mientras haya holgura, ámbar al 75%, rojo al 90%. */
-function color(r: ResumenDeUso): number {
+/**
+ * Rojo si una fuente dejó de leerse, y si no, el presupuesto: verde con
+ * holgura, ámbar al 75%, rojo al 90%.
+ *
+ * Una fuente muerta manda sobre el gasto. El gasto de un día son céntimos; un
+ * catálogo que dejó de actualizarse manda a alguien a un sitio que ya cerró.
+ */
+function color(r: ResumenDeUso, fuentes: readonly SourceStatus[]): number {
+  if (staleSources(fuentes).length > 0) return 0xa32219;
   if (r.presupuestoUsd <= 0) return 0x2b7a78;
   const usado = r.total.usd / r.presupuestoUsd;
   if (usado >= 0.9) return 0xa32219;
@@ -24,7 +39,11 @@ function color(r: ResumenDeUso): number {
   return 0x2b7a78;
 }
 
-export function construirReporte(r: ResumenDeUso, sitio: string) {
+export function construirReporte(
+  r: ResumenDeUso,
+  sitio: string,
+  fuentes: readonly SourceStatus[] = [],
+) {
   // Preguntas arriba, costo abajo. El numero que dice si esto le sirve a
   // alguien es cuanta gente pregunto, no cuantas veces se llamo al modelo:
   // mostrando solo lo segundo, el contador parecia congelado mientras el sitio
@@ -83,6 +102,26 @@ export function construirReporte(r: ResumenDeUso, sitio: string) {
     });
   }
 
+  // Frescura por fuente. Va SIEMPRE, no solo cuando algo falla: la vez que se
+  // rompio, lo que fallo fue que nadie estaba mirando, y una linea que solo
+  // aparece en la mala noticia no entrena a nadie a leerla.
+  //
+  // `mapa-emergencia` estuvo cuatro dias sin leerse. El sitio respondia, la
+  // ingesta se ponia en cuarentena sola y correctamente, y 550 registros se
+  // servian como vigentes cuando la fuente ya los habia archivado.
+  if (fuentes.length > 0) {
+    const linea = (f: SourceStatus) => {
+      const cuando = f.hoursAgo === null ? "nunca leída" : `hace ${horas(f.hoursAgo)}`;
+      return `${f.stale ? "🔴" : "🟢"} ${f.name} · ${cuando}`;
+    };
+    const caidas = staleSources(fuentes);
+    campos.push({
+      name: caidas.length > 0 ? `Fuentes · ${caidas.length} sin actualizar` : "Fuentes",
+      value: fuentes.map(linea).join("\n"),
+      inline: false,
+    });
+  }
+
   campos.push({
     name: "Tokens acumulados",
     value: `${miles(r.total.inputTokens)} entrada · ${miles(r.total.outputTokens)} salida`,
@@ -117,7 +156,7 @@ export function construirReporte(r: ResumenDeUso, sitio: string) {
       {
         title: "Uso y consumo",
         url: sitio,
-        color: color(r),
+        color: color(r, fuentes),
         fields: campos,
         footer: { text: "Totales agregados. No se registran preguntas ni usuarios." },
       },

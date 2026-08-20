@@ -1,6 +1,6 @@
 import { enviarReporteDeUso } from "@/lib/discord";
 import { purgeExpiredText } from "@/lib/feedback-retention";
-import { usageSummary } from "@/lib/usage";
+import { sourcesHealth, usageSummary } from "@/lib/usage";
 
 import { authorized } from "../ingest/auth";
 
@@ -15,7 +15,8 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(request: Request) {
   if (!authorized(request)) return new Response(null, { status: 404 });
-  return Response.json(await usageSummary());
+  const [uso, fuentes] = await Promise.all([usageSummary(), sourcesHealth()]);
+  return Response.json({ ...uso, fuentes });
 }
 
 export async function POST(request: Request) {

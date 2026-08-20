@@ -1,5 +1,5 @@
 import { construirReporte } from "./reporte";
-import { usageSummary } from "./usage";
+import { sourcesHealth, usageSummary } from "./usage";
 
 /**
  * Reporte de consumo a Discord.
@@ -21,14 +21,14 @@ export async function enviarReporteDeUso(): Promise<{ ok: boolean; detalle: stri
   const webhook = process.env.DISCORD_WEBHOOK_URL;
   if (!webhook) return { ok: false, detalle: "DISCORD_WEBHOOK_URL no está configurado" };
 
-  const resumen = await usageSummary();
+  const [resumen, fuentes] = await Promise.all([usageSummary(), sourcesHealth()]);
   const sitio = process.env.SITE_URL ?? "https://emergenciacolombia.org";
 
   try {
     const respuesta = await fetch(webhook, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(construirReporte(resumen, sitio)),
+      body: JSON.stringify(construirReporte(resumen, sitio, fuentes)),
       signal: AbortSignal.timeout(10_000),
     });
     if (!respuesta.ok) {
@@ -36,7 +36,13 @@ export async function enviarReporteDeUso(): Promise<{ ok: boolean; detalle: stri
       // registra nunca: quien la tenga puede publicar en el canal.
       return { ok: false, detalle: `Discord respondió ${respuesta.status}` };
     }
-    return { ok: true, detalle: `Enviado: ${resumen.total.calls} consultas acumuladas` };
+    const caidas = fuentes.filter((f) => f.stale).map((f) => f.slug);
+    return {
+      ok: true,
+      detalle:
+        `Enviado: ${resumen.total.calls} consultas acumuladas` +
+        (caidas.length > 0 ? ` · SIN ACTUALIZAR: ${caidas.join(", ")}` : ""),
+    };
   } catch {
     return { ok: false, detalle: "No se pudo contactar a Discord" };
   }

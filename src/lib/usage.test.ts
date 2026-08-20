@@ -156,3 +156,50 @@ describe("el reporte cuenta preguntas, no solo inferencia", () => {
     expect(reporte.embeds[0]!.fields.some((f) => f.name.startsWith("Se fueron"))).toBe(false);
   });
 });
+
+/**
+ * La línea que faltaba el día que una fuente se murió.
+ *
+ * `mapa-emergencia` estuvo cuatro días sin leerse y el reporte de cada hora
+ * salió igual de tranquilo, porque solo hablaba de gasto. El gasto de un día
+ * son céntimos; un catálogo congelado manda a alguien a un sitio que ya cerró.
+ */
+describe("frescura de las fuentes en el reporte", () => {
+  const fuentes = [
+    { slug: "viva", name: "Fuente Viva", hoursAgo: 0.2, stale: false },
+    { slug: "muerta", name: "Fuente Muerta", hoursAgo: 100.6, stale: true },
+  ];
+
+  it("las lista siempre, no solo cuando algo falla", () => {
+    const sanas = [{ slug: "viva", name: "Fuente Viva", hoursAgo: 0.2, stale: false }];
+    const campos = construirReporte(resumen(), "https://ejemplo.org", sanas).embeds[0]!.fields;
+    expect(campos.some((f) => f.name.startsWith("Fuentes"))).toBe(true);
+  });
+
+  it("nombra la que se cayó y hace cuánto", () => {
+    const campo = construirReporte(
+      resumen(),
+      "https://ejemplo.org",
+      fuentes,
+    ).embeds[0]!.fields.find((f) => f.name.startsWith("Fuentes"))!;
+
+    expect(campo.name).toContain("1 sin actualizar");
+    expect(campo.value).toContain("Fuente Muerta");
+    expect(campo.value).toContain("4 días");
+  });
+
+  it("una fuente caída pinta el mensaje de rojo, por encima del presupuesto", () => {
+    const holgado = resumen({ presupuestoUsd: 1000 });
+    const conCaida = construirReporte(holgado, "https://ejemplo.org", fuentes).embeds[0]!.color;
+    const sinCaida = construirReporte(holgado, "https://ejemplo.org", [fuentes[0]!]).embeds[0]!
+      .color;
+
+    expect(conCaida).toBe(0xa32219);
+    expect(sinCaida).not.toBe(conCaida);
+  });
+
+  it("sin datos de fuentes no inventa el campo", () => {
+    const campos = construirReporte(resumen(), "https://ejemplo.org").embeds[0]!.fields;
+    expect(campos.some((f) => f.name.startsWith("Fuentes"))).toBe(false);
+  });
+});

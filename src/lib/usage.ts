@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { db } from "@/db";
 
 import { PRESUPUESTO_USD, costoUsd, type Preguntas, type ResumenDeUso } from "./costo";
+import { classifySources, type SourceStatus } from "./source-health";
 
 /**
  * Cuánto se lleva gastado en inferencia.
@@ -183,4 +184,48 @@ export async function usageSummary(): Promise<ResumenDeUso> {
         ? Math.max(0, Math.floor((PRESUPUESTO_USD - totalUsd) / usdPorDia))
         : null,
   };
+}
+
+/**
+ * Cuando se leyo por ultima vez cada fuente conectada.
+ *
+ * `last_seen_at` es la marca que deja cada ingesta sobre los registros que la
+ * fuente listo, asi que su maximo por fuente es la hora de la ultima corrida
+ * que escribio algo. Es la senal que existe sin agregar tabla ni columna.
+ *
+ * Una corrida en cuarentena no escribe: por eso una fuente que se rompe deja de
+ * mover este numero, que es exactamente lo que hay que vigilar.
+ */
+export async function sourcesHealth(now: Date = new Date()): Promise<SourceStatus[]> {
+  try {
+    const filas = (await db.execute(sql`
+      SELECT s.slug,
+             s.name,
+             s.poll_interval_seconds::int AS poll_interval_seconds,
+             MAX(sr.last_seen_at) AS last_read_at
+      FROM sources s
+      LEFT JOIN source_records sr ON sr.source_id = s.id AND sr.withdrawn_at IS NULL
+      WHERE s.enabled = true AND s.slug NOT LIKE 'demo-%'
+      GROUP BY s.slug, s.name, s.poll_interval_seconds
+      ORDER BY s.slug
+    `)) as unknown as {
+      slug: string;
+      name: string;
+      poll_interval_seconds: number;
+      last_read_at: string | Date | null;
+    }[];
+
+    return classifySources(
+      filas.map((f) => ({
+        slug: f.slug,
+        name: f.name,
+        pollIntervalSeconds: f.poll_interval_seconds,
+        lastReadAt: f.last_read_at ? new Date(f.last_read_at) : null,
+      })),
+      now,
+    );
+  } catch {
+    // El reporte de gasto no puede caerse porque falle esta consulta.
+    return [];
+  }
 }
