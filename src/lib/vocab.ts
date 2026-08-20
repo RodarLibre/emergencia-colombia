@@ -277,6 +277,25 @@ export const MUNICIPALITY_BY_CODE: ReadonlyMap<string, Municipality> = new Map(
   ALL_MUNICIPALITIES.map((m) => [m.code, m]),
 );
 
+/**
+ * The department a municipality belongs to.
+ *
+ * Every record used to be stamped with the FIRST operating department, which
+ * was correct while the area was Valle del Cauca alone. Once coverage grew to
+ * the Eje Cafetero it quietly mislabelled everything: Pereira carried the right
+ * municipality code, 66001, next to department 76. The first two digits of a
+ * DANE municipality code ARE its department, so there is nothing to assume.
+ *
+ * Null when the record has no municipality — there the source's coverage is
+ * the only thing we know, and that is the caller's fallback.
+ */
+export function departmentOf(admin2Code: string | null | undefined): { code: string; name: string } | null {
+  if (!admin2Code) return null;
+  const municipality = MUNICIPALITY_BY_CODE.get(admin2Code);
+  if (!municipality) return null;
+  return { code: municipality.dept, name: municipality.deptName };
+}
+
 export const LOCATION_PRECISIONS = [
   "exact_operational_point",
   "approximate_point",

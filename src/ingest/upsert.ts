@@ -2,7 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { observations, sourceRecords, sources } from "@/db/schema";
-import { OPERATING_ADMIN1 } from "@/lib/vocab";
+import { OPERATING_ADMIN1, departmentOf } from "@/lib/vocab";
 
 import type { ParsedRecord, SourceConfig } from "./types";
 
@@ -195,8 +195,9 @@ export async function upsertRecords(
       title: rec.title,
       description: rec.description,
       categoryCodes: rec.categoryCodes,
-      admin1Code: OPERATING_ADMIN1.code,
-      admin1Name: OPERATING_ADMIN1.name,
+      // Derivado del municipio; el default de cobertura solo cuando no hay.
+      admin1Code: departmentOf(rec.admin2Code)?.code ?? OPERATING_ADMIN1.code,
+      admin1Name: departmentOf(rec.admin2Code)?.name ?? OPERATING_ADMIN1.name,
       admin2Code: rec.admin2Code,
       admin2Name: rec.admin2Name,
       locality: rec.locality,

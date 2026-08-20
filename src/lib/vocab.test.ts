@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ALL_MUNICIPALITIES, computeFreshness } from "./vocab";
+import { ALL_MUNICIPALITIES, computeFreshness, departmentOf } from "./vocab";
 
 const NOW = new Date("2026-08-13T12:00:00Z");
 const minutesAgo = (m: number) => new Date(NOW.getTime() - m * 60_000);
@@ -42,5 +42,29 @@ describe("erratas de la fuente oficial", () => {
     const nombres = new Set(ALL_MUNICIPALITIES.map((m) => m.deptName));
     expect(nombres.has("Quindío")).toBe(true);
     expect(nombres.has("Quindio")).toBe(false);
+  });
+});
+
+/**
+ * El departamento se deriva del municipio, no se asume.
+ *
+ * Cada registro llevaba el PRIMER departamento operativo, que era correcto
+ * cuando el área era solo Valle del Cauca. Al crecer al Eje Cafetero quedó
+ * mintiendo en silencio: Pereira con su código de municipio bien, 66001, y al
+ * lado el departamento 76.
+ */
+describe("departmentOf", () => {
+  it("saca el departamento del código del municipio", () => {
+    expect(departmentOf("66001")).toEqual({ code: "66", name: "Risaralda" });
+    expect(departmentOf("63001")).toEqual({ code: "63", name: "Quindío" });
+    expect(departmentOf("17001")).toEqual({ code: "17", name: "Caldas" });
+    expect(departmentOf("76001")).toEqual({ code: "76", name: "Valle del Cauca" });
+  });
+
+  it("sin municipio no inventa departamento: eso lo decide quien llama", () => {
+    expect(departmentOf(null)).toBeNull();
+    expect(departmentOf(undefined)).toBeNull();
+    expect(departmentOf("")).toBeNull();
+    expect(departmentOf("99999")).toBeNull();
   });
 });
