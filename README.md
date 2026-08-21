@@ -176,6 +176,7 @@ live figure — [/fuentes](https://emergenciacolombia.org/fuentes) has those.
 | Source | robots.txt | State | Detail |
 |---|---|---|---|
 | mapa-emergencia | none | **connected** (~780) | Feed agreed with the owner, who published `/api/publico` on request. Carries staffing per point — how many volunteers are there and how many are missing — which no other source has. Its conditions are encoded, not just promised: a record without a confirmation time is not ingested. |
+| pereira-ayuda | none, invites indexing | **ready, disabled** (21) | Albergues and health points in Pereira, Dosquebradas, La Virginia and Santa Rosa de Cabal, kept up by young people from the city who visit the sites. Read from `/p/sitemap.xml`, the curated listing the source itself marks indexable — it already separates institutional points from the ~550 person-level requests it deliberately `noindex`es. Three of the 24 carry a phone and are dropped: a contact means it is somebody's request, not a place. |
 | Donde Ayudo Valle | none | **connected** (95) | No API at all: collection points are embedded in a static JS chunk. |
 | Cali Ayuda | none | **disabled** | Nine records, none with an address — the source does not publish them. Its contribution became noise once a richer source covered the same city. |
 | terremotocolombia.co | **yes** | **blocked** | Allows `/`, disallows `/api/`, naming `Claude-User` and `Claude-Web` explicitly. All record data loads from that API. Needs owner agreement. |
