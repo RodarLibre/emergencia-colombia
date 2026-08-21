@@ -5,6 +5,7 @@ import { sources } from "@/db/schema";
 
 import { CALI_AYUDA_SOURCE, fetchReports, parseReports } from "./adapters/cali-ayuda";
 import { DONDE_AYUDO_SOURCE, fetchDataChunk, parseDondeAyudo } from "./adapters/donde-ayudo";
+import { PEREIRA_AYUDA_SOURCE, fetchPereiraAyuda, parsePereiraAyuda } from "./adapters/pereira-ayuda";
 import { SGC_SOURCE, fetchSgcFeed, parseSgcFeed } from "./adapters/sgc";
 import { pruneAbuseEvents } from "@/lib/abuse";
 import { pruneIntentCache } from "@/lib/intent-cache";
@@ -47,6 +48,15 @@ export const ADAPTERS = {
     parse: parseDondeAyudo,
     // The source marks some points as verified by a volunteer. The fact of
     // the verification is kept, not the name of who did it.
+    verificationLevel: "source_verified",
+  },
+  "pereira-ayuda": {
+    config: PEREIRA_AYUDA_SOURCE,
+    fixture: "fixtures/pereira-ayuda-fichas.json",
+    fetch: fetchPereiraAyuda,
+    parse: parsePereiraAyuda,
+    // La fuente marca cada ficha como comprobada o no, y va a los sitios. La
+    // atribucion es a ella; nosotros no verificamos nada.
     verificationLevel: "source_verified",
   },
   "sgc-sismos": {
