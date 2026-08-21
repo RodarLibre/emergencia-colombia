@@ -1,0 +1,14 @@
+# emergenciacolombia.org
+#
+# El sitio no publica contenido propio: cada resultado pertenece a la fuente
+# que lo publico y enlaza de vuelta a ella. Las paginas llevan noindex desde
+# el principio, y esto lo dice tambien para los rastreadores que no leen la
+# etiqueta.
+User-Agent: *
+Disallow: /
+
+# Las dos superficies del protocolo Cabuya (https://cabuya.org) si son
+# publicas y estan hechas para leerse a maquina: el manifiesto y el feed de
+# lugares. Para eso existen.
+Allow: /.well-known/cabuya.json
+Allow: /cabuya/

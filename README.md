@@ -106,6 +106,7 @@ To enable the natural-language box, set `DO_GRADIENT_API_KEY` and
 | [docs/USING-THE-BOT.md](docs/USING-THE-BOT.md) | What to ask, how to read a result, what it will not answer |
 | [docs/ADDING-A-SOURCE.md](docs/ADDING-A-SOURCE.md) | The most valuable contribution: connecting one more source |
 | [docs/VOCABULARIO.md](docs/VOCABULARIO.md) | **Contributing without writing code**: the words the search understands |
+| [docs/CABUYA.md](docs/CABUYA.md) | Publishing the Cabuya feed: the manifest, the crosswalk, and whose data may be republished |
 | [docs/DEPLOY.md](docs/DEPLOY.md) | Deploying with Kamal: secrets, the schema step, and the crons that live on the host |
 | [docs/DOMINIO-CLOUDFLARE.md](docs/DOMINIO-CLOUDFLARE.md) | Domain and Cloudflare Tunnel, and what stays off the public internet |
 | [docs/MUDANZA-DE-HOST.md](docs/MUDANZA-DE-HOST.md) | Moving the deployment to another host without touching DNS |

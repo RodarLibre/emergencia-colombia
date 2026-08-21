@@ -5,6 +5,7 @@ import Link from "next/link";
 import { DataIntegrityBlock } from "@/components/DataIntegrityBlock";
 import { Nav } from "@/components/Nav";
 import { THEME_INIT_SCRIPT, ThemeToggle } from "@/components/ThemeToggle";
+import { MANIFEST_PATH } from "@/lib/cabuya/protocol";
 import { checkProductionDataIntegrity } from "@/lib/guards";
 import { getCatalogStats } from "@/lib/search";
 
@@ -76,6 +77,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           between the server output and the browser executing it.
         */}
         <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/*
+          The second way to find the Cabuya manifest (§2.2). The well-known
+          path is only RECOMMENDED because hosts and catch-all routes mangle
+          it, so the protocol asks for this advertisement as well — two
+          mechanisms, each good at the job the other fails at. React hoists it
+          into the head.
+        */}
+        <link rel="cabuya" href={MANIFEST_PATH} />
         {/*
           A single sheet, bordered like a printed instrument rather than a
           floating card. On a phone the frame IS the viewport, so the border
