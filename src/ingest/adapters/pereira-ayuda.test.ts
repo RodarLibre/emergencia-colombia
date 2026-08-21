@@ -81,3 +81,45 @@ describe("pereira-ayuda", () => {
     expect(new Set(records.map((r) => r.externalId)).size).toBe(records.length);
   });
 });
+
+/**
+ * Desescapar dos veces.
+ *
+ * `decode` corría `&amp;` primero, así que `&amp;#39;` —un `&#39;` literal que
+ * la fuente escapó a propósito— quedaba como `'`, y `&amp;lt;script&amp;gt;`
+ * volvía a ser una etiqueta de verdad. Lo encontró CodeQL en la PR; la regla
+ * es que `&amp;` va de último, porque es el que puede fabricar otra entidad.
+ */
+describe("decodificación de entidades", () => {
+  function ficha(titulo: string): string {
+    return JSON.stringify({
+      fetchedAt: "2026-08-20T18:00:00.000Z",
+      pages: [
+        {
+          url: "https://pereiraayuda.com/p/prueba.html",
+          html:
+            `<meta property="og:title" content="${titulo} · Albergue en Pereira">` +
+            `<meta property="og:url" content="https://pereiraayuda.com/p/prueba.html">` +
+            `<meta property="og:description" content="Colchonetas">` +
+            `<div data-slug="prueba"></div>`,
+        },
+      ],
+    });
+  }
+
+  it("no vuelve a decodificar lo que ya estaba escapado", () => {
+    const [r] = parsePereiraAyuda(ficha("&amp;#39;"), AHORA);
+    expect(r!.title).toBe("&#39;");
+  });
+
+  it("no reconstruye una etiqueta que la fuente escapó", () => {
+    const [r] = parsePereiraAyuda(ficha("&amp;lt;script&amp;gt;"), AHORA);
+    expect(r!.title).toBe("&lt;script&gt;");
+    expect(r!.title).not.toContain("<script>");
+  });
+
+  it("sigue decodificando lo que sí toca", () => {
+    const [r] = parsePereiraAyuda(ficha("Caf&#233; Agua &amp; algo"), AHORA);
+    expect(r!.title).toBe("Café Agua & algo");
+  });
+});
