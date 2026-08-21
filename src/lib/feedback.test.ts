@@ -16,7 +16,12 @@ describe("turn id", () => {
   it("rejects a tampered id", () => {
     vi.stubEnv("RATE_LIMIT_SECRET", "secreto-de-prueba");
     const [id = "", signature = ""] = mintTurnId()!.split(".");
-    expect(validTurnId(`${id.replace(/^./, "0")}.${signature}`)).toBe(false);
+    // The replacement has to be a character the uuid cannot already start with,
+    // or this tests the RNG instead of the signature: overwriting with a fixed
+    // "0" leaves the id untouched for the one mint in sixteen that begins with
+    // "0", and an untouched id is still validly signed.
+    const tampered = `${id[0] === "0" ? "1" : "0"}${id.slice(1)}`;
+    expect(validTurnId(`${tampered}.${signature}`)).toBe(false);
   });
 
   it("rejects an id signed with another secret", () => {
