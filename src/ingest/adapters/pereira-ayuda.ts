@@ -110,11 +110,11 @@ function meta(html: string, property: string): string | null {
 
 function decode(s: string): string {
   return s
-    .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#(\d+);/g, (_, d: string) => String.fromCodePoint(Number(d)));
+    .replace(/&#(\d+);/g, (_, d: string) => String.fromCodePoint(Number(d)))
+    .replace(/&amp;/g, "&");
 }
 
 function visibleText(html: string): string {
