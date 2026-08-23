@@ -46,9 +46,14 @@ import {
  * el primer ejemplo. Poner otra arriba le sugiere a la mayoría de la gente que
  * llega que el sitio no es sobre su ciudad.
  *
- * Debajo van las poblaciones muy afectadas de los otros departamentos:
- * Pereira (Risaralda), Armenia (Quindío) y Manizales (Caldas). Quien entra
- * desde allá tiene que ver su ciudad acá para saber que lo cubrimos.
+ * Debajo van poblaciones que sí sufrieron daños graves: Roldanillo en el norte
+ * del Valle, y Pereira (Risaralda), Armenia (Quindío) y Manizales (Caldas).
+ * Quien entra desde allá tiene que ver su municipio acá para saber que lo
+ * cubrimos.
+ *
+ * Palmira estuvo en esta lista y salió: tiene registros, pero casi no tuvo
+ * afectación grave, y un ejemplo no es solo una consulta que devuelve algo —
+ * también dice dónde está pasando lo serio.
  *
  * Cada uno se eligió porque HOY devuelve resultados —se comprobó contra la
  * base antes de escribirlos—. Un ejemplo que no encuentra nada es peor que no
@@ -56,7 +61,7 @@ import {
  */
 const SUGGESTIONS = [
   "Albergues en Cali",
-  "¿Dónde puedo llevar agua en Palmira?",
+  "¿Dónde puedo llevar agua en Roldanillo?",
   "Albergues en Pereira",
   "¿Dónde puedo ayudar en Armenia?",
   "Puntos de acopio en Manizales",
