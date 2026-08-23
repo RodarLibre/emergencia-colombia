@@ -39,18 +39,27 @@ import {
  */
 
 /**
- * Ejemplos repartidos por departamento, no todos del Valle: quien entra desde
- * Risaralda o Quindío tiene que ver su ciudad acá para saber que lo cubrimos.
+ * Cali primero, el resto de los departamentos debajo.
  *
- * Cada uno se eligió porque HOY devuelve resultados. Un ejemplo que no
- * encuentra nada es peor que no ponerlo: enseña que el sitio no sirve.
+ * Cali es la ciudad principal y el grueso del catálogo —347 registros activos
+ * contra 46 de Pereira—, así que es la que va en el marcador de posición y en
+ * el primer ejemplo. Poner otra arriba le sugiere a la mayoría de la gente que
+ * llega que el sitio no es sobre su ciudad.
+ *
+ * Debajo van las poblaciones muy afectadas de los otros departamentos:
+ * Pereira (Risaralda), Armenia (Quindío) y Manizales (Caldas). Quien entra
+ * desde allá tiene que ver su ciudad acá para saber que lo cubrimos.
+ *
+ * Cada uno se eligió porque HOY devuelve resultados —se comprobó contra la
+ * base antes de escribirlos—. Un ejemplo que no encuentra nada es peor que no
+ * ponerlo: enseña que el sitio no sirve.
  */
 const SUGGESTIONS = [
-  "Albergues en Pereira",
+  "Albergues en Cali",
   "¿Dónde puedo llevar agua en Palmira?",
+  "Albergues en Pereira",
   "¿Dónde puedo ayudar en Armenia?",
   "Puntos de acopio en Manizales",
-  "Ayuda en Roldanillo",
   "¿Quién recibe insumos médicos?",
   "¿Hubo réplicas anoche?",
 ];
@@ -284,7 +293,7 @@ function SearchBox({
           name="pregunta"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Ej: dónde llevo agua en Pereira"
+          placeholder="Ej: dónde llevo agua en Cali"
           maxLength={800}
           autoComplete="off"
           disabled={pending}
