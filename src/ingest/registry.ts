@@ -3,9 +3,14 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { sources } from "@/db/schema";
 
+import { CORAG } from "./adapters/cabuya";
 import { CALI_AYUDA_SOURCE, fetchReports, parseReports } from "./adapters/cali-ayuda";
 import { DONDE_AYUDO_SOURCE, fetchDataChunk, parseDondeAyudo } from "./adapters/donde-ayudo";
-import { PEREIRA_AYUDA_SOURCE, fetchPereiraAyuda, parsePereiraAyuda } from "./adapters/pereira-ayuda";
+import {
+  PEREIRA_AYUDA_SOURCE,
+  fetchPereiraAyuda,
+  parsePereiraAyuda,
+} from "./adapters/pereira-ayuda";
 import { SGC_SOURCE, fetchSgcFeed, parseSgcFeed } from "./adapters/sgc";
 import { pruneAbuseEvents } from "@/lib/abuse";
 import { pruneIntentCache } from "@/lib/intent-cache";
@@ -58,6 +63,18 @@ export const ADAPTERS = {
     // La fuente marca cada ficha como comprobada o no, y va a los sitios. La
     // atribucion es a ella; nosotros no verificamos nada.
     verificationLevel: "source_verified",
+  },
+  corag: {
+    config: CORAG.config,
+    fixture: "fixtures/corag-cabuya-places.json",
+    fetch: CORAG.fetch,
+    parse: CORAG.parse,
+    // What the source claims, no more. Corag verifies on a 12-hour cycle and
+    // their feed carries `last_confirmed_at`, but it declares no
+    // `confirmation_method` (§6.1), and the fifteen places share one
+    // timestamp — that is a bulk import, not fifteen confirmations. This
+    // becomes `source_verified` the day the feed says how it was confirmed.
+    verificationLevel: "community_unverified",
   },
   "sgc-sismos": {
     config: SGC_SOURCE,

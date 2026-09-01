@@ -22,6 +22,10 @@ const MODE_LABELS: Record<string, string> = {
   official_api: "API oficial",
   partner_feed: "Feed acordado con la fuente",
   public_html: "Lectura de páginas públicas",
+  sitemap_html: "Lectura del listado que la fuente marca indexable",
+  // La fuente lo publica abierto y documentado, para cualquiera: no es un
+  // permiso que nos dieran a nosotros, y decir "acordado" lo contaría mal.
+  cabuya_feed: "Feed abierto · Protocolo Cabuya",
   manual: "Carga manual",
 };
 

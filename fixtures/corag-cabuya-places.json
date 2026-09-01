@@ -1,0 +1,398 @@
+{
+  "manifestUrl": "https://ayuda.corag.org/.well-known/cabuya.json",
+  "feedUrl": "https://ayuda.corag.app/api/cabuya/places",
+  "manifest": {
+    "protocol": {
+      "name": "cabuya",
+      "spec_version": "0.1.0"
+    },
+    "publisher": {
+      "publisher_id": "corag",
+      "canonical_url": "https://ayuda.corag.app",
+      "aliases": [
+        "https://corag.app"
+      ],
+      "name": "Corag Ayuda directa",
+      "contact": "https://ayuda.corag.app/integraciones"
+    },
+    "conformance_target": "L1",
+    "feeds": [
+      {
+        "name": "Centros de acopio",
+        "url": "https://ayuda.corag.app/api/cabuya/places",
+        "entity": "place",
+        "profile": "core"
+      }
+    ],
+    "api": {
+      "base_url": "https://ayuda.corag.app/api/public/v1/",
+      "write": {
+        "enabled": true,
+        "auth": "bearer"
+      }
+    },
+    "mcp": {
+      "endpoint": "https://ayuda.corag.app/mcp",
+      "tools_language": "es"
+    },
+    "license": "CC-BY-4.0",
+    "permitted_use": [
+      "display",
+      "aggregate",
+      "ai_answer"
+    ],
+    "crawl_policy_url": "https://ayuda.corag.app/integraciones",
+    "languages": [
+      "es"
+    ]
+  },
+  "pages": [
+    {
+      "last_updated": "2026-09-01T21:17:01.627Z",
+      "ttl": 300,
+      "version": "0.1.0",
+      "publisher_id": "corag",
+      "license": "CC-BY-4.0",
+      "permitted_use": [
+        "display",
+        "aggregate",
+        "ai_answer"
+      ],
+      "data": {
+        "places": [
+          {
+            "id": "contribution-api-36ae1d1ed2bdd504de3019575acccacfa3ada32c",
+            "publisher_id": "corag",
+            "name": "Centro de acopio · Pereira",
+            "place_kind": "collection_center",
+            "municipality_code": "66001",
+            "municipality_text": "Pereira",
+            "lat": 4.8133,
+            "lon": -75.6961,
+            "geo_precision": "centroid",
+            "lifecycle_status": "active",
+            "last_confirmed_at": "2026-08-19T19:51:04.426039+00:00",
+            "updated_at": "2026-08-19T19:51:04.426039+00:00",
+            "source": {
+              "source_id": "contribution-api-36ae1d1ed2bdd504de3019575acccacfa3ada32c",
+              "source_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+              "retrieved_at": "2026-09-01T21:17:01.627Z",
+              "source_kind": "first_party"
+            },
+            "public_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+            "contact_available": false
+          },
+          {
+            "id": "contribution-1afb0b70-9b95-4ad8-9091-c0ae560f6037",
+            "publisher_id": "corag",
+            "name": "Centro de acopio · Pereira",
+            "place_kind": "collection_center",
+            "municipality_code": "66001",
+            "municipality_text": "Pereira",
+            "lat": 4.80813057532035,
+            "lon": -75.6788291279766,
+            "geo_precision": "unknown",
+            "lifecycle_status": "active",
+            "last_confirmed_at": "2026-08-19T19:51:04.426039+00:00",
+            "updated_at": "2026-08-19T19:51:04.426039+00:00",
+            "source": {
+              "source_id": "contribution-1afb0b70-9b95-4ad8-9091-c0ae560f6037",
+              "source_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+              "retrieved_at": "2026-09-01T21:17:01.627Z",
+              "source_kind": "first_party"
+            },
+            "public_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+            "contact_available": false
+          },
+          {
+            "id": "contribution-79db8aa9-2803-46b3-8bb8-343b0005bc8d",
+            "publisher_id": "corag",
+            "name": "Centro de acopio · Pereira",
+            "place_kind": "collection_center",
+            "municipality_code": "66001",
+            "municipality_text": "Pereira",
+            "lat": 4.80162835359629,
+            "lon": -75.8123803138733,
+            "geo_precision": "unknown",
+            "lifecycle_status": "active",
+            "last_confirmed_at": "2026-08-19T19:51:04.426039+00:00",
+            "updated_at": "2026-08-19T19:51:04.426039+00:00",
+            "source": {
+              "source_id": "contribution-79db8aa9-2803-46b3-8bb8-343b0005bc8d",
+              "source_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+              "retrieved_at": "2026-09-01T21:17:01.627Z",
+              "source_kind": "first_party"
+            },
+            "public_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+            "contact_available": false
+          },
+          {
+            "id": "contribution-api-58a96f0cea0290b04d422f9293b46e3a23e42677",
+            "publisher_id": "corag",
+            "name": "Centro de acopio · Pereira",
+            "place_kind": "collection_center",
+            "municipality_code": "66001",
+            "municipality_text": "Pereira",
+            "lat": 4.8133,
+            "lon": -75.6961,
+            "geo_precision": "centroid",
+            "lifecycle_status": "active",
+            "last_confirmed_at": "2026-08-19T19:51:04.426039+00:00",
+            "updated_at": "2026-08-19T19:51:04.426039+00:00",
+            "source": {
+              "source_id": "contribution-api-58a96f0cea0290b04d422f9293b46e3a23e42677",
+              "source_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+              "retrieved_at": "2026-09-01T21:17:01.627Z",
+              "source_kind": "first_party"
+            },
+            "public_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+            "contact_available": false
+          },
+          {
+            "id": "contribution-api-53c2b1ead1a4721bae9111c1ea8665e93dfe8775",
+            "publisher_id": "corag",
+            "name": "Centro de acopio · Dosquebradas",
+            "place_kind": "collection_center",
+            "municipality_code": null,
+            "municipality_text": "Dosquebradas",
+            "lat": 4.834,
+            "lon": -75.674,
+            "geo_precision": "centroid",
+            "lifecycle_status": "active",
+            "last_confirmed_at": "2026-08-19T19:51:04.426039+00:00",
+            "updated_at": "2026-08-19T19:51:04.426039+00:00",
+            "source": {
+              "source_id": "contribution-api-53c2b1ead1a4721bae9111c1ea8665e93dfe8775",
+              "source_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+              "retrieved_at": "2026-09-01T21:17:01.627Z",
+              "source_kind": "first_party"
+            },
+            "public_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+            "contact_available": false
+          },
+          {
+            "id": "contribution-85ee0738-5fe7-4f76-824c-812cd5eab975",
+            "publisher_id": "corag",
+            "name": "Centro de acopio · Pereira",
+            "place_kind": "collection_center",
+            "municipality_code": "66001",
+            "municipality_text": "Pereira",
+            "lat": 4.8060157,
+            "lon": -75.7561586,
+            "geo_precision": "unknown",
+            "lifecycle_status": "active",
+            "last_confirmed_at": "2026-08-19T19:51:04.426039+00:00",
+            "updated_at": "2026-08-19T19:51:04.426039+00:00",
+            "source": {
+              "source_id": "contribution-85ee0738-5fe7-4f76-824c-812cd5eab975",
+              "source_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+              "retrieved_at": "2026-09-01T21:17:01.627Z",
+              "source_kind": "first_party"
+            },
+            "public_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+            "contact_available": false
+          },
+          {
+            "id": "contribution-api-c96c19157883bce2730a474d82c95cb78c02fb89",
+            "publisher_id": "corag",
+            "name": "Centro de acopio · Pereira",
+            "place_kind": "collection_center",
+            "municipality_code": "66001",
+            "municipality_text": "Pereira",
+            "lat": 4.8133,
+            "lon": -75.6961,
+            "geo_precision": "centroid",
+            "lifecycle_status": "active",
+            "last_confirmed_at": "2026-08-19T19:51:04.426039+00:00",
+            "updated_at": "2026-08-19T19:51:04.426039+00:00",
+            "source": {
+              "source_id": "contribution-api-c96c19157883bce2730a474d82c95cb78c02fb89",
+              "source_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+              "retrieved_at": "2026-09-01T21:17:01.627Z",
+              "source_kind": "first_party"
+            },
+            "public_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+            "contact_available": false
+          },
+          {
+            "id": "contribution-api-564bd68b4f3e6f51ed117cad8827023ff5204059",
+            "publisher_id": "corag",
+            "name": "Centro de acopio · Dosquebradas",
+            "place_kind": "collection_center",
+            "municipality_code": null,
+            "municipality_text": "Dosquebradas",
+            "lat": 4.834,
+            "lon": -75.674,
+            "geo_precision": "centroid",
+            "lifecycle_status": "active",
+            "last_confirmed_at": "2026-08-19T19:51:04.426039+00:00",
+            "updated_at": "2026-08-19T19:51:04.426039+00:00",
+            "source": {
+              "source_id": "contribution-api-564bd68b4f3e6f51ed117cad8827023ff5204059",
+              "source_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+              "retrieved_at": "2026-09-01T21:17:01.627Z",
+              "source_kind": "first_party"
+            },
+            "public_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+            "contact_available": false
+          },
+          {
+            "id": "contribution-api-713b2dc1f08f93eb4ec89a243a597bd417f0cf8d",
+            "publisher_id": "corag",
+            "name": "Centro de acopio · Dosquebradas",
+            "place_kind": "collection_center",
+            "municipality_code": null,
+            "municipality_text": "Dosquebradas",
+            "lat": 4.834,
+            "lon": -75.674,
+            "geo_precision": "centroid",
+            "lifecycle_status": "active",
+            "last_confirmed_at": "2026-08-19T19:51:04.426039+00:00",
+            "updated_at": "2026-08-19T19:51:04.426039+00:00",
+            "source": {
+              "source_id": "contribution-api-713b2dc1f08f93eb4ec89a243a597bd417f0cf8d",
+              "source_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+              "retrieved_at": "2026-09-01T21:17:01.627Z",
+              "source_kind": "first_party"
+            },
+            "public_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+            "contact_available": false
+          },
+          {
+            "id": "contribution-206b649d-2685-4721-b900-88c1a3b7b963",
+            "publisher_id": "corag",
+            "name": "Centro de acopio · Pereira",
+            "place_kind": "collection_center",
+            "municipality_code": "66001",
+            "municipality_text": "Pereira",
+            "lat": 4.809028,
+            "lon": -75.7604576,
+            "geo_precision": "unknown",
+            "lifecycle_status": "active",
+            "last_confirmed_at": "2026-08-19T19:51:04.426039+00:00",
+            "updated_at": "2026-08-19T19:51:04.426039+00:00",
+            "source": {
+              "source_id": "contribution-206b649d-2685-4721-b900-88c1a3b7b963",
+              "source_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+              "retrieved_at": "2026-09-01T21:17:01.627Z",
+              "source_kind": "first_party"
+            },
+            "public_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+            "contact_available": false
+          },
+          {
+            "id": "contribution-2a168519-b1ca-4601-a639-fa82d8856ef4",
+            "publisher_id": "corag",
+            "name": "Centro de acopio · Bogotá",
+            "place_kind": "collection_center",
+            "municipality_code": "11001",
+            "municipality_text": "Bogotá",
+            "lat": 4.6723972,
+            "lon": -74.0653139,
+            "geo_precision": "unknown",
+            "lifecycle_status": "active",
+            "last_confirmed_at": "2026-08-19T19:51:04.426039+00:00",
+            "updated_at": "2026-08-19T19:51:04.426039+00:00",
+            "source": {
+              "source_id": "contribution-2a168519-b1ca-4601-a639-fa82d8856ef4",
+              "source_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+              "retrieved_at": "2026-09-01T21:17:01.627Z",
+              "source_kind": "first_party"
+            },
+            "public_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+            "contact_available": false
+          },
+          {
+            "id": "contribution-ab3272fc-24c6-4437-ab4c-240899b8e9ec",
+            "publisher_id": "corag",
+            "name": "Centro de acopio · Pereira",
+            "place_kind": "collection_center",
+            "municipality_code": "66001",
+            "municipality_text": "Pereira",
+            "lat": 4.80862097191117,
+            "lon": -75.7035255432129,
+            "geo_precision": "unknown",
+            "lifecycle_status": "active",
+            "last_confirmed_at": "2026-08-19T19:51:04.426039+00:00",
+            "updated_at": "2026-08-19T19:51:04.426039+00:00",
+            "source": {
+              "source_id": "contribution-ab3272fc-24c6-4437-ab4c-240899b8e9ec",
+              "source_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+              "retrieved_at": "2026-09-01T21:17:01.627Z",
+              "source_kind": "first_party"
+            },
+            "public_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+            "contact_available": false
+          },
+          {
+            "id": "contribution-api-b869cfd748bc6d2f37336403091dded347d61a60",
+            "publisher_id": "corag",
+            "name": "Centro de acopio · Dosquebradas",
+            "place_kind": "collection_center",
+            "municipality_code": null,
+            "municipality_text": "Dosquebradas",
+            "lat": 4.834,
+            "lon": -75.674,
+            "geo_precision": "centroid",
+            "lifecycle_status": "active",
+            "last_confirmed_at": "2026-08-19T19:51:04.426039+00:00",
+            "updated_at": "2026-08-19T19:51:04.426039+00:00",
+            "source": {
+              "source_id": "contribution-api-b869cfd748bc6d2f37336403091dded347d61a60",
+              "source_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+              "retrieved_at": "2026-09-01T21:17:01.627Z",
+              "source_kind": "first_party"
+            },
+            "public_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+            "contact_available": false
+          },
+          {
+            "id": "contribution-api-36b2ceb70a57ef892fc1833bc825de3b46e568c6",
+            "publisher_id": "corag",
+            "name": "Centro de acopio · Dosquebradas",
+            "place_kind": "collection_center",
+            "municipality_code": null,
+            "municipality_text": "Dosquebradas",
+            "lat": 4.834,
+            "lon": -75.674,
+            "geo_precision": "centroid",
+            "lifecycle_status": "active",
+            "last_confirmed_at": "2026-08-19T19:51:04.426039+00:00",
+            "updated_at": "2026-08-19T19:51:04.426039+00:00",
+            "source": {
+              "source_id": "contribution-api-36b2ceb70a57ef892fc1833bc825de3b46e568c6",
+              "source_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+              "retrieved_at": "2026-09-01T21:17:01.627Z",
+              "source_kind": "first_party"
+            },
+            "public_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+            "contact_available": false
+          },
+          {
+            "id": "contribution-api-5f6a6f574833aa15320429d63cb1371ace3af04a",
+            "publisher_id": "corag",
+            "name": "Centro de acopio · Pereira",
+            "place_kind": "collection_center",
+            "municipality_code": "66001",
+            "municipality_text": "Pereira",
+            "lat": 4.8133,
+            "lon": -75.6961,
+            "geo_precision": "centroid",
+            "lifecycle_status": "active",
+            "last_confirmed_at": "2026-08-19T19:51:04.426039+00:00",
+            "updated_at": "2026-08-19T19:51:04.426039+00:00",
+            "source": {
+              "source_id": "contribution-api-5f6a6f574833aa15320429d63cb1371ace3af04a",
+              "source_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+              "retrieved_at": "2026-09-01T21:17:01.627Z",
+              "source_kind": "first_party"
+            },
+            "public_url": "https://ayuda.corag.app/emergencias/eje-cafetero/puntos-de-ayuda",
+            "contact_available": false
+          }
+        ]
+      },
+      "next_cursor": null
+    }
+  ]
+}
