@@ -150,6 +150,10 @@ const STATUS_MAP: Record<string, { lifecycle: LifecycleStatus; service?: Service
 const SOURCE_KINDS: Record<string, SourceKind> = {
   official_api: "official_source",
   partner_feed: "partner_feed",
+  // Read from the publisher's own Cabuya feed. `partner_feed` is the enum's
+  // word for "another publisher handed this to us", which is exactly what a
+  // manifest does — more openly than a private agreement, not less.
+  cabuya_feed: "partner_feed",
 };
 
 const AUTHORITIES: Record<string, SourceAuthority> = {

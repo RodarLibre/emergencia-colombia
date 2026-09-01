@@ -9,6 +9,52 @@ contact data is mirrored **only** from a source that collects authorization per
 person and declares it (`mirrorsContacts`) — for every other source, contacts
 are not copied at all.
 
+## Step 0 — Check whether it already speaks Cabuya
+
+Before writing anything, look for a manifest:
+
+```bash
+curl -sL https://source.example/.well-known/cabuya.json
+```
+
+If it answers a [Cabuya Protocol](https://cabuya.org) manifest naming a feed
+with `entity: "place"`, **there is no parser to write.** Add a publisher config
+to `src/ingest/adapters/cabuya.ts` and register it:
+
+```ts
+export const MY_PUBLISHER: CabuyaPublisher = {
+  slug: "my-source",
+  name: "My Source",
+  baseUrl: "https://source.example",
+  manifestUrl: `https://source.example${MANIFEST_PATH}`,
+  pollIntervalSeconds: 1800,
+  coverageAdmin1Code: "66",
+  contactNote: "What robots.txt said, and what is deliberately not read.",
+};
+
+export const MY_SOURCE = defineCabuyaPublisher(MY_PUBLISHER);
+```
+
+Discovery, pagination, the crosswalk into our vocabulary, municipality
+resolution and redaction are shared. Steps 4 and 6 below still apply — commit a
+fixture and test it — because the shared code being correct says nothing about
+whether *that* publisher's data is what you think it is.
+
+Two things the shared adapter decides for you, so you do not have to:
+
+- **It refuses a feed that does not grant `display` in `permitted_use`.** A
+  publisher narrowing its terms stops us on the next read, with nobody having
+  to notice.
+- **It never reads contacts,** because the protocol never sends them (§7.2).
+  A Cabuya source never needs `mirrorsContacts`.
+
+And one it does not: consuming a feed is not republishing it. Nothing read this
+way enters our own feed until a grant with a name and a date is added to
+`REDISTRIBUTION` in `src/lib/cabuya/consent.ts`, no matter what the publisher's
+`permitted_use` allows.
+
+If there is no manifest, carry on.
+
 ## Step 1 — Investigate before writing code
 
 **Read `robots.txt` first, every time.**
