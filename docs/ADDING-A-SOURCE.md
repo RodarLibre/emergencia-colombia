@@ -231,6 +231,36 @@ Add a row to the source table in `README.md`: what `robots.txt` said, what was
 excluded, and why. That row is what stops the next person re-litigating a
 decision you already made.
 
+## When a source closes
+
+Sources end. The first one did on 2026-08-31, and the machinery for it did not
+exist: `withdrawn_at` had been in the schema and honoured by every read path
+since the beginning, but nothing ever set it, so a closed source could only age.
+
+**A failed read is not a closure.** A 404 is ambiguous — a moved route looks
+identical — and 5xx is the other end having a bad day. The one unambiguous
+signal is `410 Gone`, whose entire meaning is "deliberately gone, do not come
+back", and that is the same line invariant 3 draws between absence and
+withdrawal. An adapter that gets a 410 throws `SourceGoneError`, which the CLI
+and `/api/ingest` report as a withdrawal rather than as a parser failure.
+
+Retiring the records is then an operator's decision, not an automatic
+consequence:
+
+```bash
+pnpm ingest <slug> --retirar      # records leave search
+pnpm ingest <slug> --restaurar    # undoes it
+```
+
+It is deliberate for the same reason sources start disabled: an hour of
+somebody's misconfigured CDN should not be able to take a whole catalogue dark.
+Nothing is deleted — the rows stay, the observations stay immutable, and
+`/fuentes` says *"la fuente cerró y retiró sus avisos"* instead of showing a
+source that looks like it was never read.
+
+**Remove its cron line on the host too.** Otherwise every run keeps failing
+against a source that already closed.
+
 ## What breaks in production
 
 The count-collapse guard refuses a run returning more than 40% fewer records

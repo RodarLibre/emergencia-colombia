@@ -222,3 +222,65 @@ export async function upsertRecords(
 
   return result;
 }
+
+/** What a withdrawal did, so the caller can report it honestly. */
+export type WithdrawalResult = {
+  /** Records marked withdrawn by this call. Zero on a repeat run. */
+  withdrawn: number;
+  /** Records already withdrawn before it. */
+  alreadyWithdrawn: number;
+};
+
+/**
+ * Marks every record of a source as withdrawn by the source.
+ *
+ * The other half of invariant 3, and the half that had never been written. The
+ * schema has carried `withdrawn_at` since the beginning and every read path
+ * filters on it, but nothing ever set it, because until Mapa de Emergencia
+ * closed on 2026-08-31 no source had ever withdrawn anything. Absence had a
+ * mechanism and withdrawal did not, so a closed source could only age.
+ *
+ * This is not a delete. The rows stay, their observations stay immutable, and
+ * `withdrawn_at` is nullable — undoing it is one UPDATE, which is the property
+ * that makes running it a safe decision rather than an irreversible one.
+ *
+ * Deliberately not called from `runAdapter`. A `SourceGoneError` reports the
+ * 410 and stops; retiring 936 records is an operator's decision, because the
+ * cost of being wrong for an hour of somebody's misconfigured CDN is the whole
+ * catalogue of a source going dark. Same reasoning as invariant 10 in reverse.
+ */
+export async function withdrawSourceRecords(
+  sourceId: number,
+  at: Date = new Date(),
+): Promise<WithdrawalResult> {
+  const [before] = (await db.execute(sql`
+    SELECT COUNT(*) FILTER (WHERE withdrawn_at IS NULL)::int AS live,
+           COUNT(*) FILTER (WHERE withdrawn_at IS NOT NULL)::int AS gone
+    FROM source_records
+    WHERE source_id = ${sourceId}
+  `)) as unknown as { live: number; gone: number }[];
+
+  await db
+    .update(sourceRecords)
+    .set({ withdrawnAt: at })
+    .where(and(eq(sourceRecords.sourceId, sourceId), sql`${sourceRecords.withdrawnAt} IS NULL`));
+
+  return { withdrawn: before?.live ?? 0, alreadyWithdrawn: before?.gone ?? 0 };
+}
+
+/** Undoes a withdrawal. Exists so running one is reversible in one command. */
+export async function restoreSourceRecords(sourceId: number): Promise<number> {
+  const [row] = (await db.execute(sql`
+    SELECT COUNT(*)::int AS n FROM source_records
+    WHERE source_id = ${sourceId} AND withdrawn_at IS NOT NULL
+  `)) as unknown as { n: number }[];
+
+  await db
+    .update(sourceRecords)
+    .set({ withdrawnAt: null })
+    .where(
+      and(eq(sourceRecords.sourceId, sourceId), sql`${sourceRecords.withdrawnAt} IS NOT NULL`),
+    );
+
+  return row?.n ?? 0;
+}

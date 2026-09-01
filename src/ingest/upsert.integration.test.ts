@@ -8,7 +8,14 @@ import { observations, sourceRecords } from "@/db/schema";
 import { buildParsedRecord, deleteTestSource, testSlug, testSourceConfig } from "@/test-support/db";
 
 import { parseDondeAyudo } from "./adapters/donde-ayudo";
-import { assertNoCountCollapse, ensureSource, QuarantineError, upsertRecords } from "./upsert";
+import {
+  assertNoCountCollapse,
+  ensureSource,
+  QuarantineError,
+  restoreSourceRecords,
+  upsertRecords,
+  withdrawSourceRecords,
+} from "./upsert";
 
 let sourceId: number | null = null;
 
@@ -186,13 +193,17 @@ describe("departamento del registro", () => {
   it("un municipio de Risaralda no queda marcado como Valle", async () => {
     const sourceId = await ensureSource({ ...testSourceConfig(testSlug("depto")) });
     try {
-      await upsertRecords(sourceId, [
-        buildParsedRecord({
-          externalId: "pereira-1",
-          admin2Code: "66001",
-          admin2Name: "Pereira",
-        }),
-      ], "unknown");
+      await upsertRecords(
+        sourceId,
+        [
+          buildParsedRecord({
+            externalId: "pereira-1",
+            admin2Code: "66001",
+            admin2Name: "Pereira",
+          }),
+        ],
+        "unknown",
+      );
 
       const [fila] = (await db
         .select({ admin1Code: observations.admin1Code, admin1Name: observations.admin1Name })
@@ -208,5 +219,85 @@ describe("departamento del registro", () => {
     } finally {
       await deleteTestSource(sourceId);
     }
+  });
+});
+
+describe("withdrawSourceRecords — the other half of invariant 3", () => {
+  it("takes the records out of search without deleting anything", async () => {
+    sourceId = await ensureSource(testSourceConfig(testSlug("withdraw")));
+    const records = [buildParsedRecord(), buildParsedRecord(), buildParsedRecord()];
+    await upsertRecords(sourceId, records, "community_unverified");
+
+    const result = await withdrawSourceRecords(sourceId);
+    expect(result.withdrawn).toBe(3);
+    expect(result.alreadyWithdrawn).toBe(0);
+
+    const rows = await db.query.sourceRecords.findMany({
+      where: eq(sourceRecords.sourceId, sourceId),
+    });
+    // The rows survive, and so does every observation: withdrawn is a state,
+    // not a delete. Losing the history is what invariant 2 forbids, and a
+    // source closing does not make its past reads untrue.
+    expect(rows).toHaveLength(3);
+    for (const row of rows) {
+      expect(row.withdrawnAt).not.toBeNull();
+      const obs = await db.query.observations.findMany({
+        where: eq(observations.sourceRecordId, row.id),
+      });
+      expect(obs.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("is idempotent, and reports what a repeat run did not do", async () => {
+    sourceId = await ensureSource(testSourceConfig(testSlug("withdraw-twice")));
+    await upsertRecords(
+      sourceId,
+      [buildParsedRecord(), buildParsedRecord()],
+      "community_unverified",
+    );
+
+    const first = await withdrawSourceRecords(sourceId);
+    const second = await withdrawSourceRecords(sourceId);
+
+    expect(first.withdrawn).toBe(2);
+    expect(second.withdrawn).toBe(0);
+    expect(second.alreadyWithdrawn).toBe(2);
+  });
+
+  it("does not touch another source's records", async () => {
+    sourceId = await ensureSource(testSourceConfig(testSlug("withdraw-mine")));
+    const otherId = await ensureSource(testSourceConfig(testSlug("withdraw-theirs")));
+    try {
+      await upsertRecords(sourceId, [buildParsedRecord()], "community_unverified");
+      await upsertRecords(otherId, [buildParsedRecord()], "community_unverified");
+
+      await withdrawSourceRecords(sourceId);
+
+      const theirs = await db.query.sourceRecords.findMany({
+        where: eq(sourceRecords.sourceId, otherId),
+      });
+      expect(theirs).toHaveLength(1);
+      expect(theirs[0]!.withdrawnAt).toBeNull();
+    } finally {
+      await deleteTestSource(otherId);
+    }
+  });
+
+  it("is reversible, which is what makes running it a safe decision", async () => {
+    sourceId = await ensureSource(testSourceConfig(testSlug("withdraw-undo")));
+    await upsertRecords(
+      sourceId,
+      [buildParsedRecord(), buildParsedRecord()],
+      "community_unverified",
+    );
+
+    await withdrawSourceRecords(sourceId);
+    const restored = await restoreSourceRecords(sourceId);
+    expect(restored).toBe(2);
+
+    const rows = await db.query.sourceRecords.findMany({
+      where: eq(sourceRecords.sourceId, sourceId),
+    });
+    for (const row of rows) expect(row.withdrawnAt).toBeNull();
   });
 });

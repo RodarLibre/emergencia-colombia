@@ -33,6 +33,30 @@ export type ParsedRecord = {
 
 export class ParserError extends Error {}
 
+/**
+ * The source explicitly withdrew everything it published.
+ *
+ * Its own class because it is not a parser failure and must never be handled
+ * like one. A `ParserError` means "we could not read it today" and the right
+ * answer is to change nothing and try again; this means "there is nothing to
+ * read, by their decision", and retrying forever is how a dead source keeps
+ * being served as if it were alive.
+ *
+ * Only HTTP 410 raises it. A 404 is ambiguous — a moved route looks the same —
+ * and 5xx is the other end having a bad day. 410 is the one status whose whole
+ * meaning is "gone, deliberately, do not come back", which is the same
+ * distinction invariant 3 draws between absence and withdrawal.
+ */
+export class SourceGoneError extends Error {
+  /** Where the source says its data lives now, when it says so. */
+  readonly archiveUrl: string | null;
+
+  constructor(message: string, archiveUrl: string | null = null) {
+    super(message);
+    this.archiveUrl = archiveUrl;
+  }
+}
+
 /** Source configuration that `ensureSource` registers. */
 export type SourceConfig = {
   slug: string;

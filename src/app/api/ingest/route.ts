@@ -1,5 +1,5 @@
 import { ADAPTER_SLUGS, isAdapterSlug, runAdapter } from "@/ingest/registry";
-import { ParserError } from "@/ingest/types";
+import { ParserError, SourceGoneError } from "@/ingest/types";
 
 import { authorized } from "./auth";
 import { QuarantineError } from "@/ingest/upsert";
@@ -48,6 +48,15 @@ export async function POST(request: Request) {
       return Response.json(
         { fuente: slug, estado: "cuarentena", motivo: err.message },
         { status: 409 },
+      );
+    }
+    // 410 hacia afuera para el mismo hecho que nos llego como 410: la fuente
+    // se retiro. Un 502 diria "no pudimos leerla", que es lo que un cron
+    // reintenta, y esto no se arregla reintentando.
+    if (err instanceof SourceGoneError) {
+      return Response.json(
+        { fuente: slug, estado: "retirada", motivo: err.message, archivo: err.archiveUrl },
+        { status: 410 },
       );
     }
     if (err instanceof ParserError) {

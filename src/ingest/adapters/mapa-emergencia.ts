@@ -36,7 +36,13 @@ import { municipioEnCoordenada } from "@/lib/geo";
 import { buildSearchText, sanitizeText } from "@/lib/normalize";
 import type { Category, RecordTypeV1, Status } from "@/lib/vocab";
 
-import { ParserError, USER_AGENT, redactContact, type ParsedRecord } from "../types";
+import {
+  ParserError,
+  SourceGoneError,
+  USER_AGENT,
+  redactContact,
+  type ParsedRecord,
+} from "../types";
 
 export const MAPA_EMERGENCIA_SOURCE = {
   slug: "mapa-emergencia",
@@ -301,6 +307,25 @@ export async function fetchMapaEmergencia(): Promise<string> {
     headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
     signal: AbortSignal.timeout(30_000),
   });
+
+  // El 31 de agosto de 2026 la fuente cerro: las tres rutas del Worker
+  // responden 410 con `{"cerrado":true,"archivo":"..."}`, y el sitio sirve un
+  // aviso firmado que lo dice con fecha. Un 410 es lo mas explicito que puede
+  // ser un retiro por HTTP, asi que se distingue del resto de fallos en vez de
+  // reintentarse cada quince minutos para siempre.
+  if (response.status === 410) {
+    let archive: string | null = null;
+    try {
+      archive = (JSON.parse(await response.text()) as { archivo?: string }).archivo ?? null;
+    } catch {
+      // El cuerpo es cortesia, no contrato: el 410 ya dijo lo que importa.
+    }
+    throw new SourceGoneError(
+      `La fuente respondio 410 Gone: se retiro de forma explicita.${archive ? ` Archivo: ${archive}` : ""}`,
+      archive,
+    );
+  }
+
   if (!response.ok) {
     throw new ParserError(`El feed respondio ${response.status}`);
   }
