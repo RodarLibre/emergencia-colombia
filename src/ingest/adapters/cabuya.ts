@@ -51,6 +51,7 @@ import {
 
 import {
   ParserError,
+  SourceGoneError,
   USER_AGENT,
   redactContact,
   type ParsedRecord,
@@ -119,6 +120,12 @@ async function getJson(url: string, signal?: AbortSignal): Promise<unknown> {
     signal: signal ?? AbortSignal.timeout(30_000),
     redirect: "follow",
   });
+  // 410 is the protocol's own wind-down signal (§5.3): a publisher that stops
+  // is expected to say so rather than go quiet, and answering it with a retry
+  // loop is how a dead feed keeps being served as if it were alive.
+  if (response.status === 410) {
+    throw new SourceGoneError(`${url} responded 410 Gone: the publisher withdrew this feed.`);
+  }
   if (!response.ok) throw new ParserError(`${url} responded ${response.status}`);
 
   // A host answering HTML at a discovery path is the failure §2.2 names as the

@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { parseFeed } from "./mapa-emergencia";
+import { ParserError, SourceGoneError } from "../types";
+
+import { fetchMapaEmergencia, parseFeed } from "./mapa-emergencia";
 
 const FIXTURE = readFileSync("fixtures/mapa-emergencia-publico.json", "utf8");
 
@@ -159,5 +161,51 @@ describe("dotación de voluntarios", () => {
     );
     expect(r!.status).toBe("active");
     expect(r!.categoryCodes).not.toContain("volunteers");
+  });
+});
+
+describe("la fuente retirada", () => {
+  const respond = (status: number, body: string, type = "application/json") =>
+    vi.stubGlobal("fetch", () =>
+      Promise.resolve(new Response(body, { status, headers: { "content-type": type } })),
+    );
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("distingue un 410 de cualquier otro fallo, y se queda con el archivo", async () => {
+    // El 31 de agosto de 2026 la fuente cerró y respondió esto en las tres
+    // rutas. Un 410 es lo más explícito que puede ser un retiro por HTTP.
+    respond(410, JSON.stringify({ cerrado: true, archivo: "https://archivo.example" }));
+
+    const error = await fetchMapaEmergencia().catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(SourceGoneError);
+    expect((error as SourceGoneError).archiveUrl).toBe("https://archivo.example");
+  });
+
+  it("tolera un 410 sin cuerpo útil: el estado ya dijo lo que importa", async () => {
+    respond(410, "cerrado", "text/plain");
+
+    const error = await fetchMapaEmergencia().catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(SourceGoneError);
+    expect((error as SourceGoneError).archiveUrl).toBeNull();
+  });
+
+  it("NO trata un 404 ni un 500 como retiro", async () => {
+    // Es la distinción que sostiene la invariante 3: una ruta movida y un
+    // servidor caído se ven igual que una ausencia, y retirar 936 registros
+    // por cualquiera de las dos sería borrar por ausencia.
+    for (const status of [404, 500, 503]) {
+      respond(status, "nope", "text/plain");
+      const error = await fetchMapaEmergencia().catch((e: unknown) => e);
+      expect(error, String(status)).toBeInstanceOf(ParserError);
+      expect(error, String(status)).not.toBeInstanceOf(SourceGoneError);
+    }
+  });
+
+  it("devuelve el cuerpo cuando la fuente sí responde", async () => {
+    respond(200, FIXTURE);
+    await expect(fetchMapaEmergencia()).resolves.toContain("puntos");
   });
 });

@@ -16,6 +16,8 @@ type Row = {
   last_observed_at: string | null;
   with_municipality: number;
   with_address: number;
+  /** Registros que la fuente retiró explícitamente. Ver invariante 3. */
+  withdrawn: number;
 };
 
 const MODE_LABELS: Record<string, string> = {
@@ -41,6 +43,18 @@ function sourceBand(r: Row): { className: string; label: string } {
     return {
       className: "bg-surface-2 text-muted border-border border-b",
       label: "No conectada todavía",
+    };
+  }
+  // Una fuente que se retiró no es una que nunca se leyó. Se dice antes que
+  // cualquier otra cosa, porque explica por qué no hay registros abajo.
+  //
+  // Sin fecha a propósito: la única que tenemos es cuándo lo procesamos
+  // nosotros, y puesta acá se lee como cuándo cerró la fuente, que es un dato
+  // distinto y que no publicamos.
+  if (r.withdrawn > 0 && r.records === 0) {
+    return {
+      className: "bg-surface-2 text-muted border-border border-b",
+      label: "La fuente cerró y retiró sus avisos",
     };
   }
   const read = r.last_observed_at
@@ -99,10 +113,19 @@ export default async function FuentesPage() {
       COUNT(l.record_id)::int AS records,
       MAX(l.observed_at) AS last_observed_at,
       COUNT(l.record_id) FILTER (WHERE l.admin2_code IS NOT NULL)::int AS with_municipality,
-      COUNT(l.record_id) FILTER (WHERE l.display_address IS NOT NULL)::int AS with_address
+      COUNT(l.record_id) FILTER (WHERE l.display_address IS NOT NULL)::int AS with_address,
+      -- Se cuenta aparte de \`latest\`, que excluye lo retirado a proposito. Sin
+      -- esto una fuente que cerro queda con cero registros y ninguna fecha, o
+      -- sea identica a una que nunca se leyo, que es lo contrario de lo que
+      -- paso.
+      COALESCE(w.n, 0)::int AS withdrawn
     FROM sources s
     LEFT JOIN latest l ON l.source_id = s.id
-    GROUP BY s.id, s.slug, s.name, s.base_url, s.mode, s.trust_label, s.enabled
+    LEFT JOIN (
+      SELECT source_id, COUNT(*)::int AS n
+      FROM source_records WHERE withdrawn_at IS NOT NULL GROUP BY source_id
+    ) w ON w.source_id = s.id
+    GROUP BY s.id, s.slug, s.name, s.base_url, s.mode, s.trust_label, s.enabled, w.n
     ORDER BY s.enabled DESC, s.name
   `)) as unknown as Row[];
 
