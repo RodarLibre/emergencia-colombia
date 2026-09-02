@@ -50,9 +50,9 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
-    // 410 hacia afuera para el mismo hecho que nos llego como 410: la fuente
-    // se retiro. Un 502 diria "no pudimos leerla", que es lo que un cron
-    // reintenta, y esto no se arregla reintentando.
+    // 410 outward for the same fact that reached us as a 410: the source
+    // withdrew. A 502 would say "we could not read it", which is what a cron
+    // retries, and this is not fixed by retrying.
     if (err instanceof SourceGoneError) {
       return Response.json(
         { fuente: slug, estado: "retirada", motivo: err.message, archivo: err.archiveUrl },

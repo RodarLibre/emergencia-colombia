@@ -375,8 +375,8 @@ function StatusStrip({ view, stats }: { view: View; stats: CatalogStats | null }
         href="/fuentes"
         className="bg-surface-2 border-rule hover:bg-border/30 flex items-center justify-between gap-3 border-b px-5 py-2.5"
       >
-        {/* `text-balance`: la segunda línea ahora lleva dos hechos y parte en un
-              teléfono; sin esto la última palabra queda sola y parece un error. */}
+        {/* `text-balance`: the second line now carries two facts and wraps on a
+              phone; without it the last word sits alone and reads as a glitch. */}
         <span className="stamp text-muted text-balance">
           {lines.count}
           {lines.freshness ? (

@@ -15,11 +15,11 @@ function source(over: Partial<SourceStatusInput> = {}): SourceStatusInput {
   };
 }
 
-describe("sourceStatusLabel — cuándo se leyó, no cuándo cambió", () => {
-  it("nombra la última lectura, no la última observación", () => {
-    // El bug medido en producción: Donde Ayudo se lee cada quince minutos y no
-    // publica un cambio desde el 14 de agosto. La etiqueta decía "Leída hace 19
-    // días" de una fuente que se acababa de leer.
+describe("sourceStatusLabel — when it was read, not when it changed", () => {
+  it("names the last read, not the last observation", () => {
+    // The bug as measured in production: Donde Ayudo is read every fifteen
+    // minutes and has published no change since 14 August. The band said
+    // "Leída hace 19 días" about a source that had just been read.
     const label = sourceStatusLabel(
       source({
         lastReadAt: new Date(AHORA.getTime() - 5 * 60_000),
@@ -31,10 +31,10 @@ describe("sourceStatusLabel — cuándo se leyó, no cuándo cambió", () => {
     expect(label).not.toMatch(/Leída hace 19 días/);
   });
 
-  it("dice también que la fuente lleva tiempo sin cambiar", () => {
-    // Sin esta mitad, arreglar la etiqueta escondería que el contenido tiene
-    // 19 días — que es justo lo que una persona necesita para decidir si
-    // confiar en una dirección.
+  it("also says the source has gone a while without changing", () => {
+    // Without this half, fixing the band would hide that the content is 19
+    // days old — which is exactly what a person needs in order to decide
+    // whether to trust an address.
     const label = sourceStatusLabel(
       source({ lastChangedAt: new Date("2026-08-14T01:36:43Z") }),
       AHORA,
@@ -42,8 +42,8 @@ describe("sourceStatusLabel — cuándo se leyó, no cuándo cambió", () => {
     expect(label).toBe("Leída hace 5 min · sin cambios hace 19 días");
   });
 
-  it("no menciona los cambios cuando la fuente está al día", () => {
-    // Una fuente viva y sin novedades no tiene por qué parecer sospechosa.
+  it("does not mention changes when the source is current", () => {
+    // A source that is alive and simply has no news should not look suspect.
     const label = sourceStatusLabel(
       source({ lastChangedAt: new Date(AHORA.getTime() - 3 * 3_600_000) }),
       AHORA,
@@ -51,7 +51,7 @@ describe("sourceStatusLabel — cuándo se leyó, no cuándo cambió", () => {
     expect(label).toBe("Leída hace 5 min");
   });
 
-  it("el umbral es un día, y no se dispara justo por debajo", () => {
+  it("the threshold is a day, and does not fire just below it", () => {
     const justo = sourceStatusLabel(
       source({ lastChangedAt: new Date(AHORA.getTime() - UNCHANGED_NOTICE_MS) }),
       AHORA,
@@ -66,30 +66,30 @@ describe("sourceStatusLabel — cuándo se leyó, no cuándo cambió", () => {
   });
 });
 
-describe("sourceStatusLabel — los otros estados", () => {
-  it("una fuente sin conectar lo dice antes que nada", () => {
+describe("sourceStatusLabel — the other states", () => {
+  it("a source not yet connected says so before anything else", () => {
     expect(sourceStatusLabel(source({ enabled: false }), AHORA)).toBe("No conectada todavía");
   });
 
-  it("una fuente que cerró no es una que nunca se leyó", () => {
+  it("a source that closed is not one that was never read", () => {
     const label = sourceStatusLabel(source({ records: 0, withdrawn: 936 }), AHORA);
     expect(label).toBe("La fuente cerró y retiró sus avisos");
   });
 
-  it("no le pone fecha al cierre, porque no tenemos esa fecha", () => {
-    // La única que hay es cuándo lo procesamos nosotros, y ahí se lee como
-    // cuándo cerró la fuente, que es otro hecho.
+  it("puts no date on the closure, because we do not hold that date", () => {
+    // The only one there is is when we processed it, and shown there it reads
+    // as when the source closed, which is a different fact.
     const label = sourceStatusLabel(source({ records: 0, withdrawn: 936 }), AHORA);
     expect(label).not.toMatch(/hace/);
   });
 
-  it("distingue no haber leído nunca de haber leído sin cambios", () => {
+  it("tells never-read apart from read-with-no-changes", () => {
     expect(sourceStatusLabel(source({ lastReadAt: null }), AHORA)).toBe("Sin lecturas todavía");
     expect(sourceStatusLabel(source({ lastChangedAt: null }), AHORA)).toBe("Leída hace 5 min");
   });
 
-  it("un retiro parcial no apaga la fuente", () => {
-    // `withdrawn > 0` con registros vivos es una fuente que sigue publicando.
+  it("a partial withdrawal does not switch the source off", () => {
+    // `withdrawn > 0` with live records is a source still publishing.
     const label = sourceStatusLabel(source({ records: 12, withdrawn: 3 }), AHORA);
     expect(label).toContain("Leída");
   });
