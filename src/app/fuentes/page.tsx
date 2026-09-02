@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { relativeTime } from "@/lib/format";
+import { sourceStatusLabel } from "@/lib/source-status";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,16 @@ type Row = {
   trust_label: string;
   enabled: boolean;
   records: number;
-  last_observed_at: string | null;
+  /**
+   * Cuándo se leyó la fuente por última vez con éxito, y cuándo cambió algo.
+   *
+   * No son lo mismo y confundirlos fue el bug: `observed_at` solo se mueve
+   * cuando una observación nueva entra, o sea cuando la fuente cambió. Una
+   * fuente leída cada quince minutos sin cambios lo deja quieto, y la etiqueta
+   * decía "Leída hace 19 días" de algo que se acababa de leer.
+   */
+  last_read_at: string | null;
+  last_changed_at: string | null;
   with_municipality: number;
   with_address: number;
   /** Registros que la fuente retiró explícitamente. Ver invariante 3. */
@@ -39,31 +48,22 @@ const TRUST_LABELS: Record<string, string> = {
 
 /** Same band language as `ResultCard`: how much to trust an entry reads before any word does. */
 function sourceBand(r: Row): { className: string; label: string } {
-  if (!r.enabled) {
-    return {
-      className: "bg-surface-2 text-muted border-border border-b",
-      label: "No conectada todavía",
-    };
-  }
-  // Una fuente que se retiró no es una que nunca se leyó. Se dice antes que
-  // cualquier otra cosa, porque explica por qué no hay registros abajo.
-  //
-  // Sin fecha a propósito: la única que tenemos es cuándo lo procesamos
-  // nosotros, y puesta acá se lee como cuándo cerró la fuente, que es un dato
-  // distinto y que no publicamos.
-  if (r.withdrawn > 0 && r.records === 0) {
-    return {
-      className: "bg-surface-2 text-muted border-border border-b",
-      label: "La fuente cerró y retiró sus avisos",
-    };
-  }
-  const read = r.last_observed_at
-    ? `Leída ${relativeTime(new Date(r.last_observed_at))}`
-    : "Sin lecturas todavía";
+  const label = sourceStatusLabel({
+    enabled: r.enabled,
+    records: r.records,
+    withdrawn: r.withdrawn,
+    lastReadAt: r.last_read_at ? new Date(r.last_read_at) : null,
+    lastChangedAt: r.last_changed_at ? new Date(r.last_changed_at) : null,
+  });
+
+  const muted = { className: "bg-surface-2 text-muted border-border border-b", label };
+  if (!r.enabled) return muted;
+  if (r.withdrawn > 0 && r.records === 0) return muted;
+  if (!r.last_read_at) return muted;
   if (r.trust_label === "official") {
-    return { className: "bg-official-bg text-official-text", label: read };
+    return { className: "bg-official-bg text-official-text", label };
   }
-  return { className: "bg-accent-soft text-band-fresh-text border-rule border-b", label: read };
+  return { className: "bg-accent-soft text-band-fresh-text border-rule border-b", label };
 }
 
 /** "dondeayudo.co", not "https://www.dondeayudo.co/reportes" — the button names the site, not the path. */
@@ -111,7 +111,16 @@ export default async function FuentesPage() {
       s.trust_label,
       s.enabled,
       COUNT(l.record_id)::int AS records,
-      MAX(l.observed_at) AS last_observed_at,
+      MAX(l.observed_at) AS last_changed_at,
+      -- La lectura sale de \`last_seen_at\`, que se actualiza en cada corrida
+      -- aunque nada cambie. Misma expresion que \`sourcesHealth\` en
+      -- \`lib/usage.ts\` y que \`source_last_read\` en \`lib/search.ts\`: es el
+      -- sello de la ultima ingesta que si funciono.
+      --
+      -- Agregada aparte y no con un JOIN a \`source_records\`: unida aqui
+      -- multiplica filas contra \`latest\` y COUNT(l.record_id) pasa a contar
+      -- el producto. Medido: 9025 avisos en vez de 95.
+      r.last_read_at,
       COUNT(l.record_id) FILTER (WHERE l.admin2_code IS NOT NULL)::int AS with_municipality,
       COUNT(l.record_id) FILTER (WHERE l.display_address IS NOT NULL)::int AS with_address,
       -- Se cuenta aparte de \`latest\`, que excluye lo retirado a proposito. Sin
@@ -122,18 +131,23 @@ export default async function FuentesPage() {
     FROM sources s
     LEFT JOIN latest l ON l.source_id = s.id
     LEFT JOIN (
+      SELECT source_id, MAX(last_seen_at) AS last_read_at
+      FROM source_records WHERE withdrawn_at IS NULL GROUP BY source_id
+    ) r ON r.source_id = s.id
+    LEFT JOIN (
       SELECT source_id, COUNT(*)::int AS n
       FROM source_records WHERE withdrawn_at IS NOT NULL GROUP BY source_id
     ) w ON w.source_id = s.id
-    GROUP BY s.id, s.slug, s.name, s.base_url, s.mode, s.trust_label, s.enabled, w.n
+    GROUP BY s.id, s.slug, s.name, s.base_url, s.mode, s.trust_label, s.enabled, w.n,
+             r.last_read_at
     ORDER BY s.enabled DESC, s.name
   `)) as unknown as Row[];
 
   const enabled = rows.filter((r) => r.enabled);
   const totalRecords = enabled.reduce((sum, r) => sum + r.records, 0);
   const lastRead = enabled.reduce<Date | null>((max, r) => {
-    if (!r.last_observed_at) return max;
-    const t = new Date(r.last_observed_at);
+    if (!r.last_read_at) return max;
+    const t = new Date(r.last_read_at);
     return !max || t > max ? t : max;
   }, null);
 
@@ -203,7 +217,10 @@ export default async function FuentesPage() {
                       <span className="label shrink-0 whitespace-nowrap">
                         {TRUST_LABELS[r.trust_label] ?? r.trust_label}
                       </span>
-                      <span className="label text-right opacity-80">{b.label}</span>
+                      {/* `text-balance` porque la etiqueta ahora puede traer dos hechos y en
+                          un teléfono parte en dos líneas: sin esto la segunda queda con una
+                          palabra suelta a la derecha y parece un error de render. */}
+                      <span className="label text-right text-balance opacity-80">{b.label}</span>
                     </div>
 
                     <div className="flex flex-col gap-2 p-3">
