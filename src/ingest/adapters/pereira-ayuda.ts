@@ -73,8 +73,18 @@ const TYPE_BY_LABEL: Record<string, { type: RecordTypeV1; category: Category | n
 };
 
 const MONTHS: Record<string, number> = {
-  enero: 0, febrero: 1, marzo: 2, abril: 3, mayo: 4, junio: 5,
-  julio: 6, agosto: 7, septiembre: 8, octubre: 9, noviembre: 10, diciembre: 11,
+  enero: 0,
+  febrero: 1,
+  marzo: 2,
+  abril: 3,
+  mayo: 4,
+  junio: 5,
+  julio: 6,
+  agosto: 7,
+  septiembre: 8,
+  octubre: 9,
+  noviembre: 10,
+  diciembre: 11,
 };
 
 /**
@@ -162,7 +172,10 @@ export function parsePereiraAyuda(raw: string, now: Date): ParsedRecord[] {
 
     // "Boston, Pereira" / "CRA 15 bis 27-27 San Nicolas, Pereira": el municipio
     // es siempre el ultimo trozo, y lo de antes es barrio o direccion.
-    const chunks = place.split(",").map((c) => c.trim()).filter(Boolean);
+    const chunks = place
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
     const municipality = resolveMunicipality(chunks.at(-1));
     // Fuera del area cubierta no se inventa municipio: entra sin el, como el
     // resto. Invariante 5.
@@ -174,8 +187,23 @@ export function parsePereiraAyuda(raw: string, now: Date): ParsedRecord[] {
     const categories = new Set<Category>(extractCategories(`${name} ${description}`) as Category[]);
     if (kind.category) categories.add(kind.category);
 
-    // La fuente escribe "Cerrado" en la ficha cuando el sitio dejo de operar.
-    const status: Status = /\bCerrado\b/.test(text) ? "closed" : "active";
+    // El estado, con dos senales y una tercera que se descarta a proposito.
+    //
+    // "Cerrado" en la ficha es la fuente diciendo que el sitio dejo de operar.
+    //
+    // El titulo tambien lo lleva —"Clinica Los Nevados — EVACUADA"— y eso no
+    // puede quedar en `active`: esa misma ficha dice "Ojo: No vaya", y
+    // ponerle el sello "Activo" al lado es el fallo que este proyecto existe
+    // para evitar. Tampoco es `closed`: un hospital evacuado puede seguir
+    // atendiendo urgencias y "parcialmente evacuada" no es un cierre.
+    // `unknown` se muestra como "Sin dato", que es lo unico que sabemos.
+    //
+    // Lo que NO se usa como senal es "Ojo:", aunque lo traigan 9 de las 21
+    // fichas. Es una advertencia, no un cierre: dos de ellas son albergues
+    // abiertos que solo piden pasar antes por el CAM, y marcarlos cerrados le
+    // negaria un techo a alguien. El error opuesto y peor.
+    const evacuated = /\bevacuad[oa]s?\b/i.test(name);
+    const status: Status = /\bCerrado\b/.test(text) ? "closed" : evacuated ? "unknown" : "active";
     const sourceUpdatedAt = parseUpdatedAt(text, now);
 
     const slug = html.match(/data-slug="([^"]+)"/)?.[1] ?? url;
