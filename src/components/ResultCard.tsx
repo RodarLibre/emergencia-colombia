@@ -2,11 +2,10 @@ import Link from "next/link";
 
 import type { SourceContact } from "@/db/schema";
 
-import { relativeTime } from "@/lib/format";
+import { resultBand, type ResultBandTone } from "@/lib/result-band";
 import type { SearchResult } from "@/lib/search";
 import {
   CATEGORY_LABELS,
-  FRESHNESS_LABELS,
   RECORD_TYPE_LABELS,
   STATUS_LABELS,
   verificationLabel,
@@ -26,55 +25,26 @@ import {
  * colours used everywhere else on the site, so the state reads before any
  * word does.
  */
-function band(result: SearchResult): { className: string; label: string } {
-  const lastUpdate = result.sourceUpdatedAt ?? result.observedAt;
-  const isClosed = result.status === "closed" || result.status === "fulfilled";
+/**
+ * Tone to style. The decision of WHICH tone lives in `lib/result-band.ts`,
+ * where it can be tested; this map is the only part that is about colour.
+ *
+ * Three tones share the warning style. That is presentation catching up with
+ * meaning, not duplication: they are different facts that happen to warrant
+ * the same amount of caution today.
+ */
+const BAND_STYLES: Record<ResultBandTone, string> = {
+  no_longer_listed: "bg-warn-bg text-warn-text border-warn-border border-b",
+  official: "bg-official-bg text-official-text",
+  closed: "bg-surface-2 text-muted border-border border-b",
+  unknown: "bg-warn-bg text-warn-text border-warn-border border-b",
+  fresh: "bg-accent-soft text-band-fresh-text border-rule border-b",
+  unconfirmed: "bg-warn-bg text-warn-text border-warn-border border-b",
+};
 
-  // Above everything else, including "official": the source read fine and no
-  // longer lists this. Whatever it said before, nobody is standing behind it
-  // now, and that is what someone about to drive there needs first.
-  if (result.noLongerListed) {
-    return {
-      className: "bg-warn-bg text-warn-text border-warn-border border-b",
-      // "La fuente ya no lo publica" hacia pensar en un detalle editorial. Lo
-      // que hay que entender antes de manejar hasta alla es que el dato esta
-      // viejo y que quien lo publico lo quito.
-      label: `Desactualizada, eliminada por la fuente · vista ${relativeTime(result.lastSeenAt)}`,
-    };
-  }
-  if (result.verificationLevel === "official") {
-    return {
-      className: "bg-official-bg text-official-text",
-      label: `Fuente oficial · ${relativeTime(lastUpdate)}`,
-    };
-  }
-  if (isClosed) {
-    return {
-      className: "bg-surface-2 text-muted border-border border-b",
-      label: `${STATUS_LABELS[result.status]} · ${relativeTime(lastUpdate)}`,
-    };
-  }
-  // "Sin dato" antes que la frescura, porque las dos bandas responden cosas
-  // distintas y la de frescura contesta la que no se preguntó: dice
-  // "Confirmado" por lo reciente que es NUESTRA lectura, no porque el sitio
-  // esté operando. Sin esta rama, "Clínica Los Nevados — EVACUADA", cuya
-  // ficha dice "Ojo: No vaya", salía con el sello "Confirmado hace 2 min".
-  if (result.status === "unknown") {
-    return {
-      className: "bg-warn-bg text-warn-text border-warn-border border-b",
-      label: `${STATUS_LABELS.unknown} · visto ${relativeTime(result.lastSeenAt)}`,
-    };
-  }
-  if (result.freshness === "fresh") {
-    return {
-      className: "bg-accent-soft text-band-fresh-text border-rule border-b",
-      label: `${FRESHNESS_LABELS.fresh} ${relativeTime(lastUpdate)}`,
-    };
-  }
-  return {
-    className: "bg-warn-bg text-warn-text border-warn-border border-b",
-    label: `${FRESHNESS_LABELS[result.freshness]} ${relativeTime(lastUpdate)}`,
-  };
+function band(result: SearchResult): { className: string; label: string } {
+  const { tone, label } = resultBand(result);
+  return { className: BAND_STYLES[tone], label };
 }
 
 /** Un WhatsApp se abre en WhatsApp; un correo en el correo. */
