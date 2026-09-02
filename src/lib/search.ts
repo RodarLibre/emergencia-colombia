@@ -13,6 +13,7 @@ import {
   type RecordTypeV1,
   type Status,
   type VerificationLevel,
+  PERISHABLE_RECORD_TYPES,
 } from "./vocab";
 
 export type SearchFilters = {
@@ -563,7 +564,15 @@ export async function searchWithFallback(filters: SearchFilters): Promise<Broade
 export type CatalogStats = {
   sourceCount: number;
   recordCount: number;
-  lastObservedAt: Date | null;
+  /** Última lectura con éxito: dice que la tubería está viva. */
+  lastReadAt: Date | null;
+  /**
+   * Lo más nuevo que publicó una fuente, entre los tipos que caducan: dice qué
+   * tan vieja es la información. No es `observed_at`, que se mueve con
+   * cualquier cambio —incluido un sismo nuevo cada pocas horas— y hacía que la
+   * línea dijera "hace 2 horas" sobre un catálogo de veinte días.
+   */
+  lastPerishableUpdateAt: Date | null;
 };
 
 /**
@@ -576,7 +585,16 @@ export type CatalogStats = {
  */
 export async function getCatalogStats(): Promise<CatalogStats> {
   const integrity = await checkProductionDataIntegrity();
-  if (!integrity.ok) return { sourceCount: 0, recordCount: 0, lastObservedAt: null };
+
+  // Mismo idioma que los filtros de `searchRecords`: una lista de parametros,
+  // no un array de JS. `= ANY(...)` recibe el array como un solo parametro y
+  // Postgres responde "requires array on right side".
+  const perishableList = sql.join(
+    PERISHABLE_RECORD_TYPES.map((t) => sql`${t}`),
+    sql`, `,
+  );
+  if (!integrity.ok)
+    return { sourceCount: 0, recordCount: 0, lastReadAt: null, lastPerishableUpdateAt: null };
 
   const [sourceRows, latestRows] = await Promise.all([
     db.execute(sql`
@@ -587,7 +605,7 @@ export async function getCatalogStats(): Promise<CatalogStats> {
     db.execute(sql`
       WITH latest AS (
         SELECT DISTINCT ON (o.source_record_id)
-          o.observed_at
+          sr.last_seen_at, o.source_updated_at, o.record_type
         FROM observations o
         JOIN source_records sr ON sr.id = o.source_record_id
         JOIN sources s ON s.id = sr.source_id
@@ -597,16 +615,32 @@ export async function getCatalogStats(): Promise<CatalogStats> {
           AND ${excludeDemoSources()}
         ORDER BY o.source_record_id, o.observed_at DESC
       )
-      SELECT COUNT(*)::int AS record_count, MAX(observed_at) AS last_observed_at
+      SELECT COUNT(*)::int AS record_count,
+             MAX(last_seen_at) AS last_read_at,
+             -- Solo los tipos que caducan. Los que no —un sismo, un comunicado
+             -- vigente hasta que lo reemplacen— nunca envejecen, y meterlos
+             -- aqui es lo que hacia que un feed automatico tapara veinte dias
+             -- de quietud en todo lo demas. La lista sale de
+             -- FRESHNESS_WINDOW_MINUTES, no de un criterio nuevo.
+             MAX(source_updated_at) FILTER (
+               WHERE record_type IN (${perishableList})
+             ) AS last_perishable_update_at
       FROM latest
-    `) as unknown as Promise<{ record_count: number; last_observed_at: string | Date | null }[]>,
+    `) as unknown as Promise<
+      {
+        record_count: number;
+        last_read_at: string | Date | null;
+        last_perishable_update_at: string | Date | null;
+      }[]
+    >,
   ]);
 
   return {
     sourceCount: sourceRows[0]?.source_count ?? 0,
     recordCount: latestRows[0]?.record_count ?? 0,
-    lastObservedAt: latestRows[0]?.last_observed_at
-      ? new Date(latestRows[0].last_observed_at)
+    lastReadAt: latestRows[0]?.last_read_at ? new Date(latestRows[0].last_read_at) : null,
+    lastPerishableUpdateAt: latestRows[0]?.last_perishable_update_at
+      ? new Date(latestRows[0].last_perishable_update_at)
       : null,
   };
 }
