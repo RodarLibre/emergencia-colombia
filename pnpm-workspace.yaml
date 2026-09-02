@@ -6,3 +6,18 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - "@ai-sdk/gateway@4.0.51"
   - ai@7.0.64
+
+# GHSA-67mh-4wv8-2f99: drizzle-kit todavia arrastra @esbuild-kit/esm-loader
+# —deprecado, "merged into tsx"— y este trae esbuild 0.18, cuyo dev server
+# responde con Access-Control-Allow-Origin: * y deja que cualquier web le lea
+# la respuesta.
+#
+# No es explotable aca: ese paquete solo llama transform() y transformSync(),
+# nunca serve(), y node_modules no entra al contenedor de produccion. Se sube
+# igual porque no cuesta nada y una alerta abierta que hay que recordar por que
+# se ignora termina tapando la siguiente.
+#
+# Rango abierto, no ^0.25: las otras dos instancias son 0.25.12 y 0.28.2 y
+# fijarlas a ^0.25 degradaria la de 0.28.
+overrides:
+  esbuild: ">=0.25.0"
