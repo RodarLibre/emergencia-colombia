@@ -20,9 +20,11 @@ building their own tools and connecting beats converging.
 
 ## Current state
 
-**Live at https://emergenciacolombia.org**, serving three connected sources
+**Live at https://emergenciacolombia.org**, serving four connected sources
 across Valle del Cauca, Risaralda, Caldas and Quindío. Each source is ingested
-on its own schedule, every 10 to 20 minutes.
+on its own schedule, from every 15 minutes to hourly — the interval is the
+source's, not ours: `pereira-ayuda` is read once an hour because each run is
+~22 requests to a site a group of volunteers keeps up.
 
 Live counts are on [/fuentes](https://emergenciacolombia.org/fuentes), per
 source and always current. They are not repeated here: a number typed into a
@@ -90,8 +92,9 @@ pnpm build
 pnpm db:reset                            # drops the volume and recreates
 pnpm lint && pnpm test                   # no database needed
 pnpm test:integration                    # needs Postgres
-pnpm ingest mapa-emergencia              # live
+pnpm ingest corag                        # live
 pnpm ingest donde-ayudo-valle --fixture  # offline
+pnpm ingest mapa-emergencia              # a source that withdrew: answers 410
 ```
 
 To enable the natural-language box, set `DO_GRADIENT_API_KEY` and
@@ -109,7 +112,6 @@ To enable the natural-language box, set `DO_GRADIENT_API_KEY` and
 | [docs/CABUYA.md](docs/CABUYA.md) | Publishing the Cabuya feed: the manifest, the crosswalk, and whose data may be republished |
 | [docs/DEPLOY.md](docs/DEPLOY.md) | Deploying with Kamal: secrets, the schema step, and the crons that live on the host |
 | [docs/DOMINIO-CLOUDFLARE.md](docs/DOMINIO-CLOUDFLARE.md) | Domain and Cloudflare Tunnel, and what stays off the public internet |
-| [docs/MUDANZA-DE-HOST.md](docs/MUDANZA-DE-HOST.md) | Moving the deployment to another host without touching DNS |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to propose a change: branch, pull request, and what never gets committed |
 | [CONVENTIONS.md](CONVENTIONS.md) | Language rule, comment style, how to run the tests |
 | [AGENTS.md](AGENTS.md) | Orientation for AI agents: the ten invariants, and where the traps are |

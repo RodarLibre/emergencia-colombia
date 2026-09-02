@@ -25,9 +25,9 @@ Cauca during an emergency; translating the interface would make it worse.
   README.
 
 Everything else under `docs/` is developer- or operator-facing and follows the
-English rule. `docs/MUDANZA-DE-HOST.md` and `docs/DOMINIO-CLOUDFLARE.md` are
-still Spanish, from before this rule; they are not being retrofitted, but the
-next substantial edit to either should move it over.
+English rule. `docs/DOMINIO-CLOUDFLARE.md` is still Spanish, from before this
+rule; it is not being retrofitted, but the next substantial edit should move it
+over.
 
 Anything written before this file follows the old convention (Spanish comments).
 It is not being retrofitted; new and modified code uses English.

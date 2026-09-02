@@ -1,12 +1,14 @@
 # Deploying with Kamal
 
-The site runs on a plain Debian host with Docker — today a DigitalOcean
-droplet. Nothing below assumes a particular provider: Kamal connects over SSH,
-so any box you can SSH into works.
+The site runs on a plain Debian host with Docker. Nothing below assumes a
+particular provider: Kamal connects over SSH, so any box you can SSH into
+works — it has been a DigitalOcean droplet and is a Proxmox LXC today, with no
+change to the application.
 
 The host is **not** exposed directly. Cloudflare Tunnel puts it on the
-internet, and only the bot is public — see `DOMINIO-CLOUDFLARE.md`. Moving to a
-different host later does not touch DNS: see `MUDANZA-DE-HOST.md`.
+internet, and only the bot is public — see `DOMINIO-CLOUDFLARE.md`. DNS points
+at the tunnel's UUID and never at the host's address, so the origin's address
+is not published anywhere.
 
 ## 1. Prepare the host
 
@@ -15,6 +17,24 @@ apt update && apt install -y curl ca-certificates git
 curl -fsSL https://get.docker.com | sh
 docker run --rm hello-world      # verify before touching Kamal
 ```
+
+That `hello-world` is the check, not `docker --version`. Docker can install
+cleanly and still be unable to start a container, and the version string will
+not tell you.
+
+**If the host is an unprivileged container** — an LXC on Proxmox, most
+commonly — that is exactly what happens: Docker needs namespaces it is not
+allowed to create. On the container host, with it stopped:
+
+```bash
+pct set <CTID> --features nesting=1,keyctl=1
+```
+
+`nesting` is what lets Docker create its own namespaces; `keyctl` is what
+Postgres needs to initialise. Then start it and run `hello-world` before going
+any further — nothing downstream works without it, and the failures downstream
+do not point back here. (Tailscale has the same shape of problem in an
+unprivileged container: no `/dev/net/tun`, so it installs and never starts.)
 
 Kamal connects over SSH and needs a key. From your laptop:
 
@@ -72,6 +92,33 @@ kamal app logs -f
 ```
 
 `kamal setup` also starts the Postgres accessory defined in `deploy.yml`.
+
+### A deploy that fails against a host you no longer use
+
+`deploy.yml` builds remotely, and Kamal names the buildx builder after the
+host it built on. That builder survives on **your** machine when the host
+changes, so pointing `DEPLOY_HOST` somewhere new leaves a second one behind
+that still dials the old address.
+
+It does not fail at the move. It fails whenever the old host stops answering —
+days later, when nothing obviously connects the two — and the error names SSH,
+not the builder:
+
+```
+--builder kamal-remote-ssh---root-167-71-106-139
+ssh: connect to host 167.71.106.139 port 22: Operation timed out
+```
+
+`docker buildx ls` shows it with status `error`. Remove it and deploy again:
+
+```bash
+docker buildx rm kamal-remote-ssh---root-<old-host-with-dashes>
+docker context rm kamal-remote-ssh---root-<old-host-with-dashes>-context
+```
+
+`buildx rm` reports a failure while removing it — it cannot reach the dead host
+to clean up the remote buildkit container — and that is fine: the local
+reference is what was selecting it.
 
 ## 4. Prepare the database, once
 
@@ -149,8 +196,9 @@ curl -X POST "https://<domain>/api/ingest?fuente=sgc-sismos"        -H "Authoriz
 > container directly on the host. `curl -fsS` fails loudly on 404, which is why
 > the `-f` is there.
 
-Two crons live on the host. **They are not in this repository, so a host move
-loses them silently** — `MUDANZA-DE-HOST.md` §5 has both.
+Two crons live on the host. **They are not in this repository**, so nothing
+detects their absence: the site comes up looking healthy and simply stops being
+updated.
 
 ```cron
 */15 * * * * curl -fsS -X POST "https://<domain>/api/ingest?fuente=mapa-emergencia"   -H "Authorization: Bearer $INGEST_SECRET" >/dev/null
@@ -200,8 +248,10 @@ sources go offline.
 ## If the site has to survive a regional outage
 
 Hosting inside the affected region means a regional power or internet failure
-takes the site down at the moment it matters most. The recovery path is short
-because the image is already in a registry: point `DEPLOY_HOST` at another box,
-run `kamal setup`, restore the dump, and move the tunnel. Keeping a recent
-`pg_dump` off-site is what makes that a ten-minute operation instead of a
-rebuild. Full steps in `MUDANZA-DE-HOST.md`.
+takes the site down at the moment it matters most.
+
+What the repository owes that situation is one thing: **a recent `pg_dump` kept
+off the host.** The image is already in a registry and the schema is in this
+repo, so standing the app up somewhere else is ordinary work — but the
+observation history exists in exactly one place, and once the sources go
+offline it cannot be rebuilt from anything.
