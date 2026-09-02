@@ -54,6 +54,17 @@ function band(result: SearchResult): { className: string; label: string } {
       label: `${STATUS_LABELS[result.status]} · ${relativeTime(lastUpdate)}`,
     };
   }
+  // "Sin dato" antes que la frescura, porque las dos bandas responden cosas
+  // distintas y la de frescura contesta la que no se preguntó: dice
+  // "Confirmado" por lo reciente que es NUESTRA lectura, no porque el sitio
+  // esté operando. Sin esta rama, "Clínica Los Nevados — EVACUADA", cuya
+  // ficha dice "Ojo: No vaya", salía con el sello "Confirmado hace 2 min".
+  if (result.status === "unknown") {
+    return {
+      className: "bg-warn-bg text-warn-text border-warn-border border-b",
+      label: `${STATUS_LABELS.unknown} · visto ${relativeTime(result.lastSeenAt)}`,
+    };
+  }
   if (result.freshness === "fresh") {
     return {
       className: "bg-accent-soft text-band-fresh-text border-rule border-b",
