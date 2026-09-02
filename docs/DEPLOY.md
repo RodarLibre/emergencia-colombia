@@ -1,8 +1,11 @@
 # Deploying with Kamal
 
-The site runs on a plain Debian host with Docker — today a DigitalOcean
-droplet. Nothing below assumes a particular provider: Kamal connects over SSH,
-so any box you can SSH into works.
+The site runs on a plain Debian host with Docker. Nothing below assumes a
+particular provider: Kamal connects over SSH, so any box you can SSH into
+works — it has been a DigitalOcean droplet and is a Proxmox LXC today, with no
+change to the application. If yours is an unprivileged LXC, `DEPLOY-LXC.md`
+covers the two settings that make Docker work there; everybody else can ignore
+that file.
 
 The host is **not** exposed directly. Cloudflare Tunnel puts it on the
 internet, and only the bot is public — see `DOMINIO-CLOUDFLARE.md`. Moving to a
@@ -72,6 +75,33 @@ kamal app logs -f
 ```
 
 `kamal setup` also starts the Postgres accessory defined in `deploy.yml`.
+
+### After changing hosts: remove the old buildx builder
+
+`deploy.yml` builds remotely, and Kamal names the buildx builder after the
+host it built on. That builder survives on **your** machine when the host
+changes, so pointing `DEPLOY_HOST` somewhere new leaves a second one behind
+that still dials the old address.
+
+It does not fail at the move. It fails whenever the old host stops answering —
+days later, when nothing obviously connects the two — and the error names SSH,
+not the builder:
+
+```
+--builder kamal-remote-ssh---root-167-71-106-139
+ssh: connect to host 167.71.106.139 port 22: Operation timed out
+```
+
+`docker buildx ls` shows it with status `error`. Remove it and deploy again:
+
+```bash
+docker buildx rm kamal-remote-ssh---root-<old-host-with-dashes>
+docker context rm kamal-remote-ssh---root-<old-host-with-dashes>-context
+```
+
+`buildx rm` reports a failure while removing it — it cannot reach the dead host
+to clean up the remote buildkit container — and that is fine: the local
+reference is what was selecting it.
 
 ## 4. Prepare the database, once
 

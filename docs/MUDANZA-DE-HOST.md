@@ -66,6 +66,11 @@ set -a && source .env && set +a && kamal setup
 `setup` instala Docker si falta, arranca Postgres como accesorio y levanta la
 app. Las siguientes veces es `kamal deploy`.
 
+Si el host nuevo es un LXC sin privilegios, `DEPLOY-LXC.md` tiene los dos
+ajustes sin los cuales Docker no arranca ahí. Y al mudarse queda un *builder*
+de buildx apuntando al host viejo que no falla hasta que ese host deja de
+responder: `DEPLOY.md` §3.
+
 ## 3. Restaurar la base
 
 ```bash
