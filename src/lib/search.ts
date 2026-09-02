@@ -564,13 +564,13 @@ export async function searchWithFallback(filters: SearchFilters): Promise<Broade
 export type CatalogStats = {
   sourceCount: number;
   recordCount: number;
-  /** Última lectura con éxito: dice que la tubería está viva. */
+  /** Last successful read: says the pipeline is alive. */
   lastReadAt: Date | null;
   /**
-   * Lo más nuevo que publicó una fuente, entre los tipos que caducan: dice qué
-   * tan vieja es la información. No es `observed_at`, que se mueve con
-   * cualquier cambio —incluido un sismo nuevo cada pocas horas— y hacía que la
-   * línea dijera "hace 2 horas" sobre un catálogo de veinte días.
+   * The newest change published by a source, among record types that can go
+   * stale: says how old the information is. Not `observed_at`, which moves on
+   * any change at all — including a new earthquake every few hours — and made
+   * the line read "hace 2 horas" over a catalogue twenty days old.
    */
   lastPerishableUpdateAt: Date | null;
 };
@@ -586,9 +586,9 @@ export type CatalogStats = {
 export async function getCatalogStats(): Promise<CatalogStats> {
   const integrity = await checkProductionDataIntegrity();
 
-  // Mismo idioma que los filtros de `searchRecords`: una lista de parametros,
-  // no un array de JS. `= ANY(...)` recibe el array como un solo parametro y
-  // Postgres responde "requires array on right side".
+  // Same idiom as the filters in `searchRecords`: a parameter list, not a JS
+  // array. `= ANY(...)` binds the array as a single parameter and Postgres
+  // answers "requires array on right side".
   const perishableList = sql.join(
     PERISHABLE_RECORD_TYPES.map((t) => sql`${t}`),
     sql`, `,
@@ -617,11 +617,11 @@ export async function getCatalogStats(): Promise<CatalogStats> {
       )
       SELECT COUNT(*)::int AS record_count,
              MAX(last_seen_at) AS last_read_at,
-             -- Solo los tipos que caducan. Los que no —un sismo, un comunicado
-             -- vigente hasta que lo reemplacen— nunca envejecen, y meterlos
-             -- aqui es lo que hacia que un feed automatico tapara veinte dias
-             -- de quietud en todo lo demas. La lista sale de
-             -- FRESHNESS_WINDOW_MINUTES, no de un criterio nuevo.
+             -- Only the types that can go stale. The ones that cannot -- an
+             -- earthquake, a communique valid until replaced -- never age, and
+             -- including them is what let one automated feed hide twenty days
+             -- of silence everywhere else. The list comes from
+             -- FRESHNESS_WINDOW_MINUTES, not from a new judgement.
              MAX(source_updated_at) FILTER (
                WHERE record_type IN (${perishableList})
              ) AS last_perishable_update_at

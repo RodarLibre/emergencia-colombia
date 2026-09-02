@@ -60,9 +60,9 @@ export function resultBand(result: ResultBandInput, now: Date = new Date()): Res
   if (result.noLongerListed) {
     return {
       tone: "no_longer_listed",
-      // "La fuente ya no lo publica" hacía pensar en un detalle editorial. Lo
-      // que hay que entender antes de manejar hasta allá es que el dato está
-      // viejo y que quien lo publicó lo quitó.
+      // "La fuente ya no lo publica" read like an editorial footnote. What
+      // somebody needs to understand before driving there is that the data is
+      // old and that whoever published it took it down.
       label: `Desactualizada, eliminada por la fuente · vista ${relativeTime(result.lastSeenAt, now)}`,
     };
   }

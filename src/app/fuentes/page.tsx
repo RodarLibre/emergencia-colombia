@@ -14,18 +14,18 @@ type Row = {
   enabled: boolean;
   records: number;
   /**
-   * Cuándo se leyó la fuente por última vez con éxito, y cuándo cambió algo.
+   * When the source was last read successfully, and when it last changed.
    *
-   * No son lo mismo y confundirlos fue el bug: `observed_at` solo se mueve
-   * cuando una observación nueva entra, o sea cuando la fuente cambió. Una
-   * fuente leída cada quince minutos sin cambios lo deja quieto, y la etiqueta
-   * decía "Leída hace 19 días" de algo que se acababa de leer.
+   * Not the same thing, and conflating them was the bug: `observed_at` only
+   * moves when a new observation lands, which is when the source changed. A
+   * source read every fifteen minutes with nothing new leaves it frozen, and
+   * the band said "Leída hace 19 días" about something just read.
    */
   last_read_at: string | null;
   last_changed_at: string | null;
   with_municipality: number;
   with_address: number;
-  /** Registros que la fuente retiró explícitamente. Ver invariante 3. */
+  /** Records the source explicitly withdrew. See invariant 3. */
   withdrawn: number;
 };
 
@@ -34,8 +34,8 @@ const MODE_LABELS: Record<string, string> = {
   partner_feed: "Feed acordado con la fuente",
   public_html: "Lectura de páginas públicas",
   sitemap_html: "Lectura del listado que la fuente marca indexable",
-  // La fuente lo publica abierto y documentado, para cualquiera: no es un
-  // permiso que nos dieran a nosotros, y decir "acordado" lo contaría mal.
+  // The source publishes it openly and documented, for anyone: it is not a
+  // permission granted to us, and "acordado" would tell that wrong.
   cabuya_feed: "Feed abierto · Protocolo Cabuya",
   manual: "Carga manual",
 };
@@ -112,21 +112,21 @@ export default async function FuentesPage() {
       s.enabled,
       COUNT(l.record_id)::int AS records,
       MAX(l.observed_at) AS last_changed_at,
-      -- La lectura sale de \`last_seen_at\`, que se actualiza en cada corrida
-      -- aunque nada cambie. Misma expresion que \`sourcesHealth\` en
-      -- \`lib/usage.ts\` y que \`source_last_read\` en \`lib/search.ts\`: es el
-      -- sello de la ultima ingesta que si funciono.
+      -- The read comes from \`last_seen_at\`, which every run updates whether
+      -- or not anything changed. Same expression as \`sourcesHealth\` in
+      -- \`lib/usage.ts\` and \`source_last_read\` in \`lib/search.ts\`: the stamp
+      -- of the last ingest that actually worked.
       --
-      -- Agregada aparte y no con un JOIN a \`source_records\`: unida aqui
-      -- multiplica filas contra \`latest\` y COUNT(l.record_id) pasa a contar
-      -- el producto. Medido: 9025 avisos en vez de 95.
+      -- Aggregated separately rather than JOINed to \`source_records\`: joined
+      -- here it multiplies rows against \`latest\` and COUNT(l.record_id) starts
+      -- counting the product. Measured: 9025 records instead of 95.
       r.last_read_at,
       COUNT(l.record_id) FILTER (WHERE l.admin2_code IS NOT NULL)::int AS with_municipality,
       COUNT(l.record_id) FILTER (WHERE l.display_address IS NOT NULL)::int AS with_address,
-      -- Se cuenta aparte de \`latest\`, que excluye lo retirado a proposito. Sin
-      -- esto una fuente que cerro queda con cero registros y ninguna fecha, o
-      -- sea identica a una que nunca se leyo, que es lo contrario de lo que
-      -- paso.
+      -- Counted apart from \`latest\`, which excludes withdrawn records on
+      -- purpose. Without this a source that closed shows zero records and no
+      -- date, i.e. identical to one never read, which is the opposite of what
+      -- happened.
       COALESCE(w.n, 0)::int AS withdrawn
     FROM sources s
     LEFT JOIN latest l ON l.source_id = s.id

@@ -182,12 +182,12 @@ export const FRESHNESS_WINDOW_MINUTES: Record<RecordTypeV1, number | null> = {
 };
 
 /**
- * Los tipos que envejecen, derivados de la tabla de arriba y no escritos a
- * mano: si algún día un tipo deja de caducar, esta lista lo sigue sola.
+ * The types that age, derived from the table above rather than hand-listed: if
+ * a type ever stops expiring, this list follows on its own.
  *
- * Un albergue sin reconfirmar hace veinte días es un dato viejo; un sismo de
- * magnitud 7,4 de hace veinte días es el mismo hecho de siempre. Mezclarlos al
- * resumir el catálogo deja que un feed automático tape la quietud del resto.
+ * A shelter nobody has reconfirmed in twenty days is old data; a magnitude 7.4
+ * from twenty days ago is the same fact it always was. Mixing them when
+ * summarising the catalogue lets one automated feed hide how still the rest is.
  */
 export const PERISHABLE_RECORD_TYPES: RecordTypeV1[] = (
   Object.keys(FRESHNESS_WINDOW_MINUTES) as RecordTypeV1[]

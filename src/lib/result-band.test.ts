@@ -2,114 +2,114 @@ import { describe, expect, it } from "vitest";
 
 import { resultBand, type ResultBandInput } from "./result-band";
 
-const AHORA = new Date("2026-09-02T12:00:00Z");
-const hace = (min: number) => new Date(AHORA.getTime() - min * 60_000);
+const NOW = new Date("2026-09-02T12:00:00Z");
+const ago = (min: number) => new Date(NOW.getTime() - min * 60_000);
 
-function resultado(over: Partial<ResultBandInput> = {}): ResultBandInput {
+function result(over: Partial<ResultBandInput> = {}): ResultBandInput {
   return {
     status: "active",
     freshness: "fresh",
     verificationLevel: "community_unverified",
     noLongerListed: false,
-    sourceUpdatedAt: hace(30),
-    observedAt: hace(5),
-    lastSeenAt: hace(2),
+    sourceUpdatedAt: ago(30),
+    observedAt: ago(5),
+    lastSeenAt: ago(2),
     ...over,
   };
 }
 
-describe("resultBand — el orden importa", () => {
-  it('"la fuente lo quitó" gana incluso sobre oficial', () => {
-    // Da igual quién lo publicó: si la fuente leyó bien y ya no lo lista,
-    // nadie responde por ese dato, y eso es lo primero que necesita saber
-    // quien está por manejar hasta allá.
+describe("resultBand — precedence matters", () => {
+  it('"the source took it down" wins even over official', () => {
+    // It does not matter who published it: if the source read fine and no
+    // longer lists it, nobody stands behind that data, and it is the first
+    // thing somebody about to drive there needs to know.
     const b = resultBand(
-      resultado({ noLongerListed: true, verificationLevel: "official", status: "active" }),
-      AHORA,
+      result({ noLongerListed: true, verificationLevel: "official", status: "active" }),
+      NOW,
     );
     expect(b.tone).toBe("no_longer_listed");
     expect(b.label).toContain("eliminada por la fuente");
   });
 
-  it('"sin dato" gana sobre la frescura', () => {
-    // El bug que motivó separar esto: la banda de frescura dice "Confirmado"
-    // por lo reciente que es NUESTRA lectura, no porque el sitio opere.
-    const b = resultBand(resultado({ status: "unknown", freshness: "fresh" }), AHORA);
+  it('"sin dato" wins over freshness', () => {
+    // The bug that prompted splitting this out: the freshness band says
+    // "Confirmado" about how recent OUR read is, not about the place operating.
+    const b = resultBand(result({ status: "unknown", freshness: "fresh" }), NOW);
     expect(b.tone).toBe("unknown");
     expect(b.label).toContain("Sin dato");
     expect(b.label).not.toContain("Confirmado");
   });
 
-  it("cerrado gana sobre la frescura, pero no sobre oficial", () => {
-    expect(resultBand(resultado({ status: "closed" }), AHORA).tone).toBe("closed");
-    expect(
-      resultBand(resultado({ status: "closed", verificationLevel: "official" }), AHORA).tone,
-    ).toBe("official");
+  it("closed wins over freshness, but not over official", () => {
+    expect(resultBand(result({ status: "closed" }), NOW).tone).toBe("closed");
+    expect(resultBand(result({ status: "closed", verificationLevel: "official" }), NOW).tone).toBe(
+      "official",
+    );
   });
 });
 
-describe("resultBand — qué dice cada estado", () => {
-  it("trata atendido como cerrado", () => {
-    // No es lo mismo, pero para quien lleva una caja significan lo mismo: no
-    // manejes hasta allá esperando entregarla.
+describe("resultBand — what each state says", () => {
+  it("treats fulfilled as closed", () => {
+    // Not the same thing, but to somebody holding a box they mean the same:
+    // do not drive there expecting to hand it over.
     for (const status of ["closed", "fulfilled"] as const) {
-      expect(resultBand(resultado({ status }), AHORA).tone, status).toBe("closed");
+      expect(resultBand(result({ status }), NOW).tone, status).toBe("closed");
     }
   });
 
-  it("nombra a la fuente oficial antes que a la frescura", () => {
-    const b = resultBand(resultado({ verificationLevel: "official" }), AHORA);
+  it("names the official source before freshness", () => {
+    const b = resultBand(result({ verificationLevel: "official" }), NOW);
     expect(b.tone).toBe("official");
     expect(b.label).toContain("Fuente oficial");
   });
 
-  it("confirma lo fresco y no lo que no se reconfirmó", () => {
-    expect(resultBand(resultado({ freshness: "fresh" }), AHORA).tone).toBe("fresh");
+  it("confirms what is fresh and not what went unreconfirmed", () => {
+    expect(resultBand(result({ freshness: "fresh" }), NOW).tone).toBe("fresh");
     for (const freshness of ["needs_reconfirmation", "stale"] as const) {
-      const b = resultBand(resultado({ freshness }), AHORA);
+      const b = resultBand(result({ freshness }), NOW);
       expect(b.tone, freshness).toBe("unconfirmed");
       expect(b.label, freshness).toContain("Sin confirmar");
     }
   });
 });
 
-describe("resultBand — de qué reloj sale cada fecha", () => {
-  it("usa la fecha de la fuente cuando la publica", () => {
+describe("resultBand — which clock each date comes from", () => {
+  it("uses the source's date when it publishes one", () => {
     const b = resultBand(
-      resultado({ freshness: "fresh", sourceUpdatedAt: hace(120), observedAt: hace(1) }),
-      AHORA,
+      result({ freshness: "fresh", sourceUpdatedAt: ago(120), observedAt: ago(1) }),
+      NOW,
     );
     expect(b.label).toContain("hace 2 horas");
   });
 
-  it("cae en la observación solo cuando la fuente no publica fecha", () => {
+  it("falls back to the observation only when the source stamps nothing", () => {
     const b = resultBand(
-      resultado({ freshness: "fresh", sourceUpdatedAt: null, observedAt: hace(45) }),
-      AHORA,
+      result({ freshness: "fresh", sourceUpdatedAt: null, observedAt: ago(45) }),
+      NOW,
     );
     expect(b.label).toContain("hace 45 min");
   });
 
-  it('"sin dato" dice cuándo lo vimos, no cuándo lo observamos', () => {
-    // `observedAt` se mueve cada vez que NOSOTROS releemos un registro cuya
-    // fuente no sella fecha, y eso se lee como que alguien lo confirmó.
-    // "Visto" es lo que de verdad pasó.
+  it('"sin dato" says when we saw it, not when we observed it', () => {
+    // `observedAt` moves every time WE re-read a record whose source stamps no
+    // date, and that reads as somebody having confirmed it. "Visto" is what
+    // actually happened.
     const b = resultBand(
-      resultado({
+      result({
         status: "unknown",
         sourceUpdatedAt: null,
-        observedAt: hace(1),
-        lastSeenAt: hace(90),
+        observedAt: ago(1),
+        lastSeenAt: ago(90),
       }),
-      AHORA,
+      NOW,
     );
     expect(b.label).toContain("visto hace 2 horas");
   });
 
-  it("lo retirado también se fecha por cuándo se vio", () => {
+  it("the withdrawn one is dated by when it was seen too", () => {
     const b = resultBand(
-      resultado({ noLongerListed: true, observedAt: hace(1), lastSeenAt: hace(180) }),
-      AHORA,
+      result({ noLongerListed: true, observedAt: ago(1), lastSeenAt: ago(180) }),
+      NOW,
     );
     expect(b.label).toContain("vista hace 3 horas");
   });
