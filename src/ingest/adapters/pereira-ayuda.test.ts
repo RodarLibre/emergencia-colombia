@@ -18,9 +18,9 @@ describe("pereira-ayuda", () => {
 
   it("saca los puntos institucionales del sitemap curado", () => {
     expect(records.length).toBeGreaterThan(15);
-    expect(records.every((r) => r.recordType === "shelter" || r.recordType === "service_point")).toBe(
-      true,
-    );
+    expect(
+      records.every((r) => r.recordType === "shelter" || r.recordType === "service_point"),
+    ).toBe(true);
   });
 
   it("descarta toda ficha con un teléfono, que es el pedido de una persona", () => {
@@ -121,5 +121,51 @@ describe("decodificación de entidades", () => {
   it("sigue decodificando lo que sí toca", () => {
     const [r] = parsePereiraAyuda(ficha("Caf&#233; Agua &amp; algo"), AHORA);
     expect(r!.title).toBe("Café Agua & algo");
+  });
+});
+
+describe("el estado que la fuente escribe en el titulo", () => {
+  const registros = parsePereiraAyuda(RAW, AHORA);
+  const porTitulo = (fragmento: string) => registros.find((r) => r.title.includes(fragmento));
+
+  it("no da por activo un sitio que la fuente marca evacuado", () => {
+    // "Clinica Los Nevados — EVACUADA" trae "Ojo: No vaya" en la ficha.
+    // Mostrarla con el sello "Activo" es el fallo que este proyecto evita.
+    const nevados = porTitulo("Los Nevados");
+    expect(nevados).toBeDefined();
+    expect(nevados!.status).toBe("unknown");
+  });
+
+  it("tampoco lo da por cerrado, que seria afirmar de mas", () => {
+    // Un hospital evacuado puede seguir atendiendo urgencias, y
+    // "parcialmente evacuada" no es un cierre. "Sin dato" es lo que sabemos.
+    for (const fragmento of ["Los Nevados", "Noé", "Comfamiliar"]) {
+      const r = porTitulo(fragmento);
+      expect(r, fragmento).toBeDefined();
+      expect(r!.status, fragmento).not.toBe("closed");
+      expect(r!.status, fragmento).toBe("unknown");
+    }
+  });
+
+  it("deja activo lo que la fuente marca ABIERTO", () => {
+    const sanJorge = porTitulo("San Jorge");
+    expect(sanJorge).toBeDefined();
+    expect(sanJorge!.status).toBe("active");
+  });
+
+  it('NO trata "Ojo:" como un cierre', () => {
+    // Nueve de las 21 fichas lo traen y es una advertencia, no un estado. Dos
+    // son albergues abiertos que solo piden pasar antes por el CAM: marcarlos
+    // cerrados le negaria un techo a alguien, que es el error opuesto y peor.
+    for (const fragmento of ["Centro Vida Violetas", "Polideportivo Campestre"]) {
+      const r = porTitulo(fragmento);
+      expect(r, fragmento).toBeDefined();
+      expect(r!.status, fragmento).toBe("active");
+    }
+  });
+
+  it("la mayoria sigue activa: esto no apaga la fuente", () => {
+    const activos = registros.filter((r) => r.status === "active");
+    expect(activos.length).toBeGreaterThanOrEqual(registros.length - 4);
   });
 });
