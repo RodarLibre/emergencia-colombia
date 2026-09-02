@@ -181,6 +181,18 @@ export const FRESHNESS_WINDOW_MINUTES: Record<RecordTypeV1, number | null> = {
   official_update: null, // valid until the source replaces it
 };
 
+/**
+ * Los tipos que envejecen, derivados de la tabla de arriba y no escritos a
+ * mano: si algún día un tipo deja de caducar, esta lista lo sigue sola.
+ *
+ * Un albergue sin reconfirmar hace veinte días es un dato viejo; un sismo de
+ * magnitud 7,4 de hace veinte días es el mismo hecho de siempre. Mezclarlos al
+ * resumir el catálogo deja que un feed automático tape la quietud del resto.
+ */
+export const PERISHABLE_RECORD_TYPES: RecordTypeV1[] = (
+  Object.keys(FRESHNESS_WINDOW_MINUTES) as RecordTypeV1[]
+).filter((t) => FRESHNESS_WINDOW_MINUTES[t] !== null);
+
 export const FRESHNESS_STATES = ["fresh", "needs_reconfirmation", "stale"] as const;
 export type FreshnessState = (typeof FRESHNESS_STATES)[number];
 
@@ -289,7 +301,9 @@ export const MUNICIPALITY_BY_CODE: ReadonlyMap<string, Municipality> = new Map(
  * Null when the record has no municipality — there the source's coverage is
  * the only thing we know, and that is the caller's fallback.
  */
-export function departmentOf(admin2Code: string | null | undefined): { code: string; name: string } | null {
+export function departmentOf(
+  admin2Code: string | null | undefined,
+): { code: string; name: string } | null {
   if (!admin2Code) return null;
   const municipality = MUNICIPALITY_BY_CODE.get(admin2Code);
   if (!municipality) return null;

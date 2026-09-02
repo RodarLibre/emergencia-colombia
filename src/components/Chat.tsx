@@ -13,9 +13,9 @@ import {
 } from "@/app/actions";
 import { ResultCard } from "@/components/ResultCard";
 import type { Answer, AnswerNote } from "@/lib/answer";
-import { relativeTime } from "@/lib/format";
 import type { OutOfScopeReason } from "@/lib/intent";
 import { findPossibleSameplace, statusesDisagree } from "@/lib/relate";
+import { catalogStatusLines } from "@/lib/catalog-status";
 import type { CatalogStats } from "@/lib/search";
 import { joinInSpanish } from "@/lib/spanish";
 import {
@@ -369,18 +369,20 @@ function StatusStrip({ view, stats }: { view: View; stats: CatalogStats | null }
 
   if (view.kind === "home") {
     if (!stats || stats.sourceCount === 0) return null;
+    const lines = catalogStatusLines(stats);
     return (
       <Link
         href="/fuentes"
         className="bg-surface-2 border-rule hover:bg-border/30 flex items-center justify-between gap-3 border-b px-5 py-2.5"
       >
-        <span className="stamp text-muted">
-          {stats.recordCount} {stats.recordCount === 1 ? "aviso" : "avisos"} de {stats.sourceCount}{" "}
-          {stats.sourceCount === 1 ? "fuente" : "fuentes"}
-          {stats.lastObservedAt ? (
+        {/* `text-balance`: la segunda línea ahora lleva dos hechos y parte en un
+              teléfono; sin esto la última palabra queda sola y parece un error. */}
+        <span className="stamp text-muted text-balance">
+          {lines.count}
+          {lines.freshness ? (
             <>
               <br />
-              leídas por última vez {relativeTime(stats.lastObservedAt)}
+              {lines.freshness}
             </>
           ) : null}
         </span>
